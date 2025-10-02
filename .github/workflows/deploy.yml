@@ -3,6 +3,7 @@ on:
   push:
     branches: [ main ]
   workflow_dispatch:
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -11,13 +12,18 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v4
-      # If you have a build step (e.g., Vite/React), add it here:
-      # - uses: actions/setup-node@v4
-      #   with: { node-version: '20' }
-      # - run: npm ci && npm run build
+
+      - name: Show tree (debug)
+        run: |
+          pwd
+          ls -la
+          echo "---- firebase.json ----"
+          cat firebase.json || true
+
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: "${{ secrets.GITHUB_TOKEN }}"
           firebaseServiceAccount: "${{ secrets.FIREBASE_SERVICE_ACCOUNT }}"
           projectId: riley-bmw-22879
           channelId: live
+          entryPoint: .   # if firebase.json is in a subfolder, replace '.' with that folder name
