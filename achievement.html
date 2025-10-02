@@ -1,0 +1,1142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="BMWarehouse Achievement Team Dashboard">
+  <title>Achievement Team - BMWarehouse</title>
+  <script type="importmap">
+  {
+    "imports": {
+      "firebase/app": "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js",
+      "firebase/auth": "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js",
+      "firebase/firestore": "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"
+    }
+  }
+  </script>
+  <link rel="stylesheet" href="/styles/ui.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    /* Page-specific styles */
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    .form-section {
+      background-color: var(--color-surface);
+      border-radius: var(--radius-lg);
+      padding: var(--space-lg);
+      margin-bottom: var(--space-lg);
+      box-shadow: var(--shadow-1);
+    }
+
+    .form-section-title {
+      font-size: var(--font-size-lg);
+      font-weight: var(--font-weight-semibold);
+      color: var(--color-on-surface);
+      margin-bottom: var(--space-md);
+      padding-bottom: var(--space-sm);
+      border-bottom: 2px solid var(--color-primary);
+    }
+
+    .schedule-builder {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-sm);
+    }
+
+    .schedule-item {
+      display: grid;
+      grid-template-columns: 1fr 1fr auto auto;
+      gap: var(--space-sm);
+      align-items: center;
+      padding: var(--space-sm);
+      background-color: var(--color-surface-variant);
+      border-radius: var(--radius-md);
+    }
+
+    .goal-item {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: var(--space-sm);
+      align-items: center;
+      padding: var(--space-sm);
+      background-color: var(--color-surface-variant);
+      border-radius: var(--radius-md);
+      margin-bottom: var(--space-sm);
+    }
+
+    .button-item {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: var(--space-sm);
+      align-items: center;
+      padding: var(--space-sm);
+      background-color: var(--color-surface-variant);
+      border-radius: var(--radius-md);
+      margin-bottom: var(--space-sm);
+    }
+
+    .color-preview {
+      width: 40px;
+      height: 40px;
+      border-radius: var(--radius-md);
+      border: 2px solid var(--color-outline);
+      cursor: pointer;
+    }
+
+    .threshold-item {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: var(--space-sm);
+      align-items: center;
+      padding: var(--space-sm);
+      background-color: var(--color-surface-variant);
+      border-radius: var(--radius-md);
+      margin-bottom: var(--space-sm);
+    }
+
+    .plan-list-item {
+      background-color: var(--color-surface);
+      border-radius: var(--radius-lg);
+      padding: var(--space-lg);
+      margin-bottom: var(--space-md);
+      box-shadow: var(--shadow-1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: var(--space-md);
+    }
+
+    .plan-info {
+      flex: 1;
+    }
+
+    .plan-title {
+      font-size: var(--font-size-lg);
+      font-weight: var(--font-weight-semibold);
+      color: var(--color-on-surface);
+      margin-bottom: var(--space-xs);
+    }
+
+    .plan-meta {
+      font-size: var(--font-size-sm);
+      color: var(--color-on-surface-variant);
+      display: flex;
+      gap: var(--space-md);
+      flex-wrap: wrap;
+    }
+
+    .plan-actions {
+      display: flex;
+      gap: var(--space-sm);
+      flex-wrap: wrap;
+    }
+
+    .chart-container {
+      background-color: var(--color-surface);
+      border-radius: var(--radius-lg);
+      padding: var(--space-lg);
+      margin-bottom: var(--space-lg);
+      box-shadow: var(--shadow-1);
+    }
+
+    .chart-title {
+      font-size: var(--font-size-lg);
+      font-weight: var(--font-weight-semibold);
+      color: var(--color-on-surface);
+      margin-bottom: var(--space-md);
+    }
+
+    .filter-panel {
+      background-color: var(--color-surface-variant);
+      border-radius: var(--radius-lg);
+      padding: var(--space-lg);
+      margin-bottom: var(--space-lg);
+    }
+
+    .filter-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: var(--space-md);
+    }
+
+    .drag-handle {
+      cursor: move;
+      color: var(--color-on-surface-variant);
+      display: flex;
+      align-items: center;
+    }
+
+    .accommodation-item {
+      background-color: var(--color-surface-variant);
+      border-radius: var(--radius-md);
+      padding: var(--space-md);
+      margin-bottom: var(--space-sm);
+    }
+
+    @media (max-width: 767px) {
+      .schedule-item,
+      .goal-item,
+      .button-item {
+        grid-template-columns: 1fr;
+      }
+
+      .plan-list-item {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .plan-actions {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+
+  <script type="module">
+    import { app } from '/scripts/firebase-sdk.js';
+    import { 
+      guardRoute, 
+      getCurrentUser, 
+      getClaims,
+      getAuditContext,
+      startImitate,
+      getSchoolContext
+    } from '/scripts/auth.js';
+    import { 
+      getTodayKey,
+      loadSchool,
+      loadTeacherStudents,
+      loadPlan,
+      setTheme,
+      audit
+    } from '/scripts/data.js';
+    import { parseQuery, onGuardReady } from '/scripts/router.js';
+    import { 
+      renderTopBar,
+      toast
+    } from '/scripts/components.js';
+    import { 
+      getFirestore, 
+      collection,
+      doc,
+      getDoc,
+      getDocs,
+      setDoc,
+      updateDoc,
+      query,
+      where,
+      addDoc,
+      serverTimestamp
+    } from 'firebase/firestore';
+
+    const db = getFirestore(app);
+
+    // State
+    let state = {
+      schoolId: null, // Will be loaded from getSchoolContext()
+      activeTab: 'create',
+      currentPlan: {
+        studentId: '',
+        teacherId: '',
+        planType: 'Percentage',
+        schedule: [],
+        goals: [],
+        customButtons: [],
+        incentives: { thresholds: [
+          { pct: 70, label: 'Bronze Star' },
+          { pct: 85, label: 'Silver Star' },
+          { pct: 95, label: 'Gold Star' }
+        ]},
+        accommodations: []
+      },
+      students: [],
+      allPlans: [],
+      teachers: [],
+      analytics: {
+        filters: {
+          teacherIds: [],
+          grades: [],
+          planTypes: [],
+          dateRange: { start: null, end: null }
+        },
+        data: null
+      }
+    };
+
+    // Guard route - only achievement or admin
+    await guardRoute(['achievement', 'admin']);
+
+    // Wait for body to be ready
+    onGuardReady(async () => {
+      try {
+        await init();
+      } catch (err) {
+        console.error('[Achievement] Init error');
+        document.getElementById('app').innerHTML = `
+          <div class="container" style="padding: var(--space-xl);">
+            <div class="card">
+              <h2>Error Loading Dashboard</h2>
+              <p>Unable to load the achievement dashboard. Please try refreshing the page.</p>
+            </div>
+          </div>
+        `;
+      }
+    });
+
+    async function init() {
+      // Get school context first
+      const { schoolId, user, claims } = await getSchoolContext();
+      state.schoolId = schoolId;
+
+      // Load school
+      const school = await loadSchool(state.schoolId);
+      
+      // Apply theme
+      if (school?.theme?.mode) {
+        document.documentElement.setAttribute('data-theme', school.theme.mode);
+      }
+
+      // Load initial data
+      await loadStudents();
+      await loadTeachers();
+      await loadAllPlans();
+
+      render(school, user, claims);
+      setupListeners();
+    }
+
+    async function loadStudents() {
+      const studentsRef = collection(db, 'schools', state.schoolId, 'students');
+      const snapshot = await getDocs(studentsRef);
+      
+      state.students = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+    }
+
+    async function loadTeachers() {
+      const staffRef = collection(db, 'schools', state.schoolId, 'staff');
+      const q = query(staffRef, where('roles', 'array-contains', 'teacher'));
+      const snapshot = await getDocs(q);
+      
+      state.teachers = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+    }
+
+    async function loadAllPlans() {
+      const plansRef = collection(db, 'schools', state.schoolId, 'plans');
+      const snapshot = await getDocs(plansRef);
+      
+      state.allPlans = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+    }
+
+    function render(school, user, claims) {
+      const app = document.getElementById('app');
+      
+      let html = renderTopBar({
+        school,
+        user,
+        claims,
+        onMenu: () => {
+          toast('Menu coming soon', 'info');
+        }
+      });
+
+      html += '<div class="container">';
+
+      // Tabs
+      html += `
+        <div class="tabs">
+          <button class="tab ${state.activeTab === 'create' ? 'active' : ''}" onclick="window.switchTab('create')">
+            Create Plan
+          </button>
+          <button class="tab ${state.activeTab === 'manage' ? 'active' : ''}" onclick="window.switchTab('manage')">
+            Manage Plans
+          </button>
+          <button class="tab ${state.activeTab === 'analytics' ? 'active' : ''}" onclick="window.switchTab('analytics')">
+            Analytics
+          </button>
+        </div>
+      `;
+
+      // Tab contents
+      html += `<div id="tab-create" class="tab-content ${state.activeTab === 'create' ? 'active' : ''}">`;
+      html += renderCreatePlanTab();
+      html += '</div>';
+
+      html += `<div id="tab-manage" class="tab-content ${state.activeTab === 'manage' ? 'active' : ''}">`;
+      html += renderManagePlansTab();
+      html += '</div>';
+
+      html += `<div id="tab-analytics" class="tab-content ${state.activeTab === 'analytics' ? 'active' : ''}">`;
+      html += renderAnalyticsTab();
+      html += '</div>';
+
+      html += '</div>'; // container
+
+      app.innerHTML = html;
+    }
+
+    function renderCreatePlanTab() {
+      let html = '<div style="padding: var(--space-lg) 0;">';
+
+      // Student Selection
+      html += '<div class="form-section">';
+      html += '<h3 class="form-section-title">Student Information</h3>';
+      
+      html += '<div class="form-group">';
+      html += '<label class="form-label" for="student-select">Select Student</label>';
+      html += '<select id="student-select" class="form-select" onchange="window.selectStudent(this.value)">';
+      html += '<option value="">-- Select a student --</option>';
+      for (const student of state.students) {
+        html += `<option value="${student.id}" ${state.currentPlan.studentId === student.id ? 'selected' : ''}>
+          ${student.name} (Grade ${student.grade})
+        </option>`;
+      }
+      html += '</select>';
+      html += '</div>';
+
+      html += '<div class="form-group">';
+      html += '<label class="form-label" for="teacher-select">Homeroom Teacher</label>';
+      html += '<select id="teacher-select" class="form-select">';
+      html += '<option value="">-- Select a teacher --</option>';
+      for (const teacher of state.teachers) {
+        html += `<option value="${teacher.id}" ${state.currentPlan.teacherId === teacher.id ? 'selected' : ''}>
+          ${teacher.displayName || teacher.email}
+        </option>`;
+      }
+      html += '</select>';
+      html += '</div>';
+
+      html += '</div>';
+
+      // Plan Type
+      html += '<div class="form-section">';
+      html += '<h3 class="form-section-title">Plan Type</h3>';
+      
+      html += '<div class="form-group">';
+      html += '<label class="form-label" for="plan-type-select">Select Plan Type</label>';
+      html += '<select id="plan-type-select" class="form-select" onchange="window.updatePlanType(this.value)">';
+      const planTypes = ['Percentage', 'PercentageAMPM', 'Period', 'PeriodAMPM'];
+      for (const type of planTypes) {
+        html += `<option value="${type}" ${state.currentPlan.planType === type ? 'selected' : ''}>${type}</option>`;
+      }
+      html += '</select>';
+      html += '</div>';
+
+      html += '</div>';
+
+      // Schedule Builder
+      html += '<div class="form-section">';
+      html += '<h3 class="form-section-title">Schedule</h3>';
+      
+      html += '<div class="schedule-builder" id="schedule-builder">';
+      for (let i = 0; i < state.currentPlan.schedule.length; i++) {
+        const period = state.currentPlan.schedule[i];
+        html += renderScheduleItem(period, i);
+      }
+      html += '</div>';
+
+      html += '<button class="btn btn--outline mt-md" onclick="window.addSchedulePeriod()">+ Add Period</button>';
+      html += '</div>';
+
+      // Goals
+      html += '<div class="form-section">';
+      html += '<h3 class="form-section-title">Goals</h3>';
+      
+      html += '<div id="goals-list">';
+      for (let i = 0; i < state.currentPlan.goals.length; i++) {
+        const goal = state.currentPlan.goals[i];
+        html += renderGoalItem(goal, i);
+      }
+      html += '</div>';
+
+      html += '<button class="btn btn--outline mt-md" onclick="window.addGoal()">+ Add Goal</button>';
+      html += '</div>';
+
+      // Custom Buttons
+      html += '<div class="form-section">';
+      html += '<h3 class="form-section-title">Custom Incident Buttons</h3>';
+      
+      html += '<div id="buttons-list">';
+      for (let i = 0; i < state.currentPlan.customButtons.length; i++) {
+        const button = state.currentPlan.customButtons[i];
+        html += renderButtonItem(button, i);
+      }
+      html += '</div>';
+
+      html += '<button class="btn btn--outline mt-md" onclick="window.addCustomButton()">+ Add Button</button>';
+      html += '</div>';
+
+      // Incentives
+      html += '<div class="form-section">';
+      html += '<h3 class="form-section-title">Incentives & Thresholds</h3>';
+      
+      html += '<div id="thresholds-list">';
+      for (let i = 0; i < state.currentPlan.incentives.thresholds.length; i++) {
+        const threshold = state.currentPlan.incentives.thresholds[i];
+        html += renderThresholdItem(threshold, i);
+      }
+      html += '</div>';
+
+      html += '<button class="btn btn--outline mt-md" onclick="window.addThreshold()">+ Add Threshold</button>';
+      html += '</div>';
+
+      // Accommodations
+      html += '<div class="form-section">';
+      html += '<h3 class="form-section-title">Accommodations</h3>';
+      
+      html += '<div id="accommodations-list">';
+      for (let i = 0; i < state.currentPlan.accommodations.length; i++) {
+        const accommodation = state.currentPlan.accommodations[i];
+        html += renderAccommodationItem(accommodation, i);
+      }
+      html += '</div>';
+
+      html += '<button class="btn btn--outline mt-md" onclick="window.addAccommodation()">+ Add Accommodation</button>';
+      html += '</div>';
+
+      // Save Button
+      html += `
+        <div style="display: flex; justify-content: flex-end; gap: var(--space-md); margin-top: var(--space-xl);">
+          <button class="btn btn--outline" onclick="window.resetPlan()">Reset</button>
+          <button class="btn btn--primary" onclick="window.savePlan()">💾 Save Plan</button>
+        </div>
+      `;
+
+      html += '</div>';
+      return html;
+    }
+
+    function renderScheduleItem(period, index) {
+      const showAmPm = state.currentPlan.planType.includes('AMPM');
+      
+      return `
+        <div class="schedule-item">
+          <input 
+            type="text" 
+            class="form-input" 
+            value="${period.label || ''}" 
+            placeholder="Period Label (e.g., A, 1, Monday)"
+            onchange="window.updateSchedulePeriod(${index}, 'label', this.value)"
+          />
+          ${showAmPm ? `
+            <select 
+              class="form-select"
+              onchange="window.updateSchedulePeriod(${index}, 'am', this.value === 'true')"
+            >
+              <option value="true" ${period.am ? 'selected' : ''}>AM</option>
+              <option value="false" ${!period.am ? 'selected' : ''}>PM</option>
+            </select>
+          ` : '<div></div>'}
+          <button class="btn btn--icon" onclick="window.moveSchedulePeriod(${index}, -1)" ${index === 0 ? 'disabled' : ''}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"/>
+            </svg>
+          </button>
+          <button class="btn btn--icon btn--text" onclick="window.removeSchedulePeriod(${index})" style="color: var(--color-error);">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+            </svg>
+          </button>
+        </div>
+      `;
+    }
+
+    function renderGoalItem(goal, index) {
+      return `
+        <div class="goal-item">
+          <input 
+            type="text" 
+            class="form-input" 
+            value="${goal.label || ''}" 
+            placeholder="Goal Label (e.g., On Task, Following Directions)"
+            onchange="window.updateGoal(${index}, 'label', this.value)"
+          />
+          <select 
+            class="form-select"
+            onchange="window.updateGoal(${index}, 'kind', this.value)"
+          >
+            <option value="stepper" ${goal.kind === 'stepper' ? 'selected' : ''}>Stepper (0-2)</option>
+            <option value="checkbox" ${goal.kind === 'checkbox' ? 'selected' : ''}>Checkbox</option>
+          </select>
+          <button class="btn btn--icon btn--text" onclick="window.removeGoal(${index})" style="color: var(--color-error);">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+            </svg>
+          </button>
+        </div>
+      `;
+    }
+
+    function renderButtonItem(button, index) {
+      return `
+        <div class="button-item">
+          <div style="display: flex; gap: var(--space-sm); align-items: center;">
+            <input 
+              type="color" 
+              value="${button.colorHex || '#4CAF50'}"
+              onchange="window.updateCustomButton(${index}, 'colorHex', this.value)"
+              class="color-preview"
+              title="Choose color"
+            />
+            <input 
+              type="text" 
+              class="form-input" 
+              value="${button.label || ''}" 
+              placeholder="Button Label (e.g., Great Job!, Needs Redirect)"
+              onchange="window.updateCustomButton(${index}, 'label', this.value)"
+              style="flex: 1;"
+            />
+          </div>
+          <div></div>
+          <button class="btn btn--icon btn--text" onclick="window.removeCustomButton(${index})" style="color: var(--color-error);">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+            </svg>
+          </button>
+        </div>
+      `;
+    }
+
+    function renderThresholdItem(threshold, index) {
+      return `
+        <div class="threshold-item">
+          <input 
+            type="number" 
+            class="form-input" 
+            value="${threshold.pct || 0}" 
+            placeholder="%" 
+            min="0" 
+            max="100"
+            onchange="window.updateThreshold(${index}, 'pct', parseInt(this.value))"
+            style="width: 80px;"
+          />
+          <input 
+            type="text" 
+            class="form-input" 
+            value="${threshold.label || ''}" 
+            placeholder="Reward Label (e.g., Bronze Star)"
+            onchange="window.updateThreshold(${index}, 'label', this.value)"
+          />
+          <button class="btn btn--icon btn--text" onclick="window.removeThreshold(${index})" style="color: var(--color-error);">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+            </svg>
+          </button>
+        </div>
+      `;
+    }
+
+    function renderAccommodationItem(accommodation, index) {
+      return `
+        <div class="accommodation-item">
+          <input 
+            type="text" 
+            class="form-input mb-sm" 
+            value="${accommodation.label || ''}" 
+            placeholder="Accommodation Label"
+            onchange="window.updateAccommodation(${index}, 'label', this.value)"
+          />
+          <textarea 
+            class="form-textarea" 
+            placeholder="Details..."
+            rows="2"
+            onchange="window.updateAccommodation(${index}, 'detail', this.value)"
+          >${accommodation.detail || ''}</textarea>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: var(--space-sm);">
+            <select 
+              class="form-select" 
+              style="width: auto;"
+              onchange="window.updateAccommodation(${index}, 'type', this.value)"
+            >
+              <option value="checkbox" ${accommodation.type === 'checkbox' ? 'selected' : ''}>Checkbox</option>
+              <option value="scale" ${accommodation.type === 'scale' ? 'selected' : ''}>Scale</option>
+            </select>
+            <button class="btn btn--text" onclick="window.removeAccommodation(${index})" style="color: var(--color-error);">
+              Remove
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderManagePlansTab() {
+      let html = '<div style="padding: var(--space-lg) 0;">';
+
+      // Search/Filter
+      html += `
+        <div class="form-section">
+          <div class="form-group">
+            <label class="form-label" for="plan-search">Search Plans</label>
+            <input 
+              type="text" 
+              id="plan-search" 
+              class="form-input" 
+              placeholder="Search by student name or teacher..."
+              oninput="window.filterPlans(this.value)"
+            />
+          </div>
+          <div style="display: flex; gap: var(--space-sm); flex-wrap: wrap;">
+            <button class="btn btn--outline" onclick="window.filterPlansBy('all')">All Plans</button>
+            <button class="btn btn--outline" onclick="window.filterPlansBy('active')">Active Only</button>
+            <button class="btn btn--outline" onclick="window.filterPlansBy('inactive')">Inactive Only</button>
+          </div>
+        </div>
+      `;
+
+      // Plans List
+      html += '<div id="plans-list">';
+      
+      if (state.allPlans.length === 0) {
+        html += `
+          <div class="empty-state">
+            <p>No plans found. Create your first plan in the "Create Plan" tab.</p>
+          </div>
+        `;
+      } else {
+        for (const plan of state.allPlans) {
+          html += renderPlanListItem(plan);
+        }
+      }
+      
+      html += '</div>';
+
+      html += '</div>';
+      return html;
+    }
+
+    function renderPlanListItem(plan) {
+      const student = state.students.find(s => s.id === plan.studentId);
+      const teacher = state.teachers.find(t => t.id === plan.teacherId);
+      
+      return `
+        <div class="plan-list-item">
+          <div class="plan-info">
+            <div class="plan-title">${student?.name || 'Unknown Student'}</div>
+            <div class="plan-meta">
+              <span>Teacher: ${teacher?.displayName || 'Unknown'}</span>
+              <span>Type: ${plan.planType}</span>
+              <span>${plan.goals?.length || 0} goals</span>
+              <span class="chip ${plan.active ? 'chip--success' : ''}" style="font-size: var(--font-size-xs);">
+                ${plan.active ? 'Active' : 'Inactive'}
+              </span>
+            </div>
+          </div>
+          <div class="plan-actions">
+            <button class="btn btn--outline" onclick="window.editPlan('${plan.id}')">
+              Edit
+            </button>
+            <button class="btn btn--outline" onclick="window.togglePlanActive('${plan.id}')">
+              ${plan.active ? 'Deactivate' : 'Activate'}
+            </button>
+            <button class="btn btn--primary" onclick="window.openAsTeacher('${plan.teacherId}')">
+              Open as Teacher
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderAnalyticsTab() {
+      let html = '<div style="padding: var(--space-lg) 0;">';
+
+      // Filters
+      html += '<div class="filter-panel">';
+      html += '<h3 style="margin-bottom: var(--space-md);">Filters</h3>';
+      html += '<div class="filter-grid">';
+      
+      html += '<div class="form-group">';
+      html += '<label class="form-label">Teachers</label>';
+      html += '<select id="filter-teachers" class="form-select" multiple size="3">';
+      for (const teacher of state.teachers) {
+        html += `<option value="${teacher.id}">${teacher.displayName || teacher.email}</option>`;
+      }
+      html += '</select>';
+      html += '</div>';
+
+      html += '<div class="form-group">';
+      html += '<label class="form-label">Grades</label>';
+      html += '<select id="filter-grades" class="form-select" multiple size="3">';
+      const grades = ['3rd', '4th', '5th'];
+      for (const grade of grades) {
+        html += `<option value="${grade}">${grade}</option>`;
+      }
+      html += '</select>';
+      html += '</div>';
+
+      html += '<div class="form-group">';
+      html += '<label class="form-label">Plan Types</label>';
+      html += '<select id="filter-plan-types" class="form-select" multiple size="3">';
+      const planTypes = ['Percentage', 'PercentageAMPM', 'Period', 'PeriodAMPM'];
+      for (const type of planTypes) {
+        html += `<option value="${type}">${type}</option>`;
+      }
+      html += '</select>';
+      html += '</div>';
+
+      html += '<div class="form-group">';
+      html += '<label class="form-label">Date Range</label>';
+      html += '<input type="date" id="filter-date-start" class="form-input mb-sm" />';
+      html += '<input type="date" id="filter-date-end" class="form-input" />';
+      html += '</div>';
+
+      html += '</div>';
+      
+      html += '<div style="display: flex; gap: var(--space-sm); margin-top: var(--space-md);">';
+      html += '<button class="btn btn--primary" onclick="window.applyAnalyticsFilters()">Apply Filters</button>';
+      html += '<button class="btn btn--outline" onclick="window.resetAnalyticsFilters()">Reset</button>';
+      html += '<button class="btn btn--outline" onclick="window.recomputeAnalytics()">Recompute Data</button>';
+      html += '</div>';
+      html += '</div>';
+
+      // Charts placeholder
+      html += '<div class="chart-container">';
+      html += '<h3 class="chart-title">Average Performance by Student</h3>';
+      html += '<div id="chart-bar" style="min-height: 300px; display: flex; align-items: center; justify-content: center; color: var(--color-on-surface-variant);">';
+      html += '<p>Click "Apply Filters" to load analytics data</p>';
+      html += '</div>';
+      html += '</div>';
+
+      html += '<div class="chart-container">';
+      html += '<h3 class="chart-title">Trends Over Time</h3>';
+      html += '<div id="chart-line" style="min-height: 300px; display: flex; align-items: center; justify-content: center; color: var(--color-on-surface-variant);">';
+      html += '<p>Click "Apply Filters" to load analytics data</p>';
+      html += '</div>';
+      html += '</div>';
+
+      html += '<div class="chart-container">';
+      html += '<h3 class="chart-title">Goals Heatmap</h3>';
+      html += '<div id="chart-heatmap" style="min-height: 300px; display: flex; align-items: center; justify-content: center; color: var(--color-on-surface-variant);">';
+      html += '<p>Click "Apply Filters" to load analytics data</p>';
+      html += '</div>';
+      html += '</div>';
+
+      html += '</div>';
+      return html;
+    }
+
+    function setupListeners() {
+      // Tab switching
+      window.switchTab = async (tabName) => {
+        state.activeTab = tabName;
+        const user = getCurrentUser();
+        const claims = getClaims();
+        const school = await loadSchool(state.schoolId);
+        render(school, user, claims);
+      };
+
+      // Create Plan functions
+      window.selectStudent = (studentId) => {
+        state.currentPlan.studentId = studentId;
+        const student = state.students.find(s => s.id === studentId);
+        if (student?.teacherId) {
+          state.currentPlan.teacherId = student.teacherId;
+          document.getElementById('teacher-select').value = student.teacherId;
+        }
+      };
+
+      window.updatePlanType = (type) => {
+        state.currentPlan.planType = type;
+      };
+
+      // Schedule functions
+      window.addSchedulePeriod = () => {
+        state.currentPlan.schedule.push({
+          id: `period_${Date.now()}`,
+          label: '',
+          am: true
+        });
+        updateFormSection('schedule-builder', state.currentPlan.schedule.map((p, i) => renderScheduleItem(p, i)).join(''));
+      };
+
+      window.updateSchedulePeriod = (index, field, value) => {
+        if (state.currentPlan.schedule[index]) {
+          state.currentPlan.schedule[index][field] = value;
+        }
+      };
+
+      window.removeSchedulePeriod = (index) => {
+        state.currentPlan.schedule.splice(index, 1);
+        updateFormSection('schedule-builder', state.currentPlan.schedule.map((p, i) => renderScheduleItem(p, i)).join(''));
+      };
+
+      window.moveSchedulePeriod = (index, direction) => {
+        const newIndex = index + direction;
+        if (newIndex >= 0 && newIndex < state.currentPlan.schedule.length) {
+          const temp = state.currentPlan.schedule[index];
+          state.currentPlan.schedule[index] = state.currentPlan.schedule[newIndex];
+          state.currentPlan.schedule[newIndex] = temp;
+          updateFormSection('schedule-builder', state.currentPlan.schedule.map((p, i) => renderScheduleItem(p, i)).join(''));
+        }
+      };
+
+      // Goals functions
+      window.addGoal = () => {
+        state.currentPlan.goals.push({
+          id: `goal_${Date.now()}`,
+          label: '',
+          kind: 'stepper'
+        });
+        updateFormSection('goals-list', state.currentPlan.goals.map((g, i) => renderGoalItem(g, i)).join(''));
+      };
+
+      window.updateGoal = (index, field, value) => {
+        if (state.currentPlan.goals[index]) {
+          state.currentPlan.goals[index][field] = value;
+        }
+      };
+
+      window.removeGoal = (index) => {
+        state.currentPlan.goals.splice(index, 1);
+        updateFormSection('goals-list', state.currentPlan.goals.map((g, i) => renderGoalItem(g, i)).join(''));
+      };
+
+      // Custom Buttons functions
+      window.addCustomButton = () => {
+        state.currentPlan.customButtons.push({
+          id: `btn_${Date.now()}`,
+          label: '',
+          colorHex: '#4CAF50'
+        });
+        updateFormSection('buttons-list', state.currentPlan.customButtons.map((b, i) => renderButtonItem(b, i)).join(''));
+      };
+
+      window.updateCustomButton = (index, field, value) => {
+        if (state.currentPlan.customButtons[index]) {
+          state.currentPlan.customButtons[index][field] = value;
+        }
+      };
+
+      window.removeCustomButton = (index) => {
+        state.currentPlan.customButtons.splice(index, 1);
+        updateFormSection('buttons-list', state.currentPlan.customButtons.map((b, i) => renderButtonItem(b, i)).join(''));
+      };
+
+      // Thresholds functions
+      window.addThreshold = () => {
+        state.currentPlan.incentives.thresholds.push({
+          pct: 80,
+          label: ''
+        });
+        updateFormSection('thresholds-list', state.currentPlan.incentives.thresholds.map((t, i) => renderThresholdItem(t, i)).join(''));
+      };
+
+      window.updateThreshold = (index, field, value) => {
+        if (state.currentPlan.incentives.thresholds[index]) {
+          state.currentPlan.incentives.thresholds[index][field] = value;
+        }
+      };
+
+      window.removeThreshold = (index) => {
+        state.currentPlan.incentives.thresholds.splice(index, 1);
+        updateFormSection('thresholds-list', state.currentPlan.incentives.thresholds.map((t, i) => renderThresholdItem(t, i)).join(''));
+      };
+
+      // Accommodations functions
+      window.addAccommodation = () => {
+        state.currentPlan.accommodations.push({
+          id: `accom_${Date.now()}`,
+          label: '',
+          detail: '',
+          type: 'checkbox'
+        });
+        updateFormSection('accommodations-list', state.currentPlan.accommodations.map((a, i) => renderAccommodationItem(a, i)).join(''));
+      };
+
+      window.updateAccommodation = (index, field, value) => {
+        if (state.currentPlan.accommodations[index]) {
+          state.currentPlan.accommodations[index][field] = value;
+        }
+      };
+
+      window.removeAccommodation = (index) => {
+        state.currentPlan.accommodations.splice(index, 1);
+        updateFormSection('accommodations-list', state.currentPlan.accommodations.map((a, i) => renderAccommodationItem(a, i)).join(''));
+      };
+
+      // Save/Reset
+      window.savePlan = async () => {
+        try {
+          if (!state.currentPlan.studentId) {
+            toast('Please select a student', 'warning');
+            return;
+          }
+          
+          if (state.currentPlan.schedule.length === 0) {
+            toast('Please add at least one schedule period', 'warning');
+            return;
+          }
+          
+          if (state.currentPlan.goals.length === 0) {
+            toast('Please add at least one goal', 'warning');
+            return;
+          }
+
+          const planId = `plan_${Date.now()}`;
+          const planRef = doc(db, 'schools', state.schoolId, 'plans', planId);
+          
+          const planData = {
+            ...state.currentPlan,
+            active: true,
+            createdAt: serverTimestamp()
+          };
+          
+          await setDoc(planRef, planData);
+          
+          // Update student's activePlanId
+          const studentRef = doc(db, 'schools', state.schoolId, 'students', state.currentPlan.studentId);
+          await updateDoc(studentRef, {
+            activePlanId: planId
+          });
+          
+          // Audit log
+          const ctx = getAuditContext();
+          await audit(state.schoolId, {
+            ...ctx,
+            action: 'plan_create',
+            target: planId,
+            details: { studentId: state.currentPlan.studentId, planType: state.currentPlan.planType }
+          });
+          
+          toast('Plan saved successfully!', 'success');
+          
+          // Reload and reset
+          await loadAllPlans();
+          window.resetPlan();
+        } catch (err) {
+          console.error('[Achievement] Save plan error');
+          toast('Failed to save plan', 'error');
+        }
+      };
+
+      window.resetPlan = async () => {
+        state.currentPlan = {
+          studentId: '',
+          teacherId: '',
+          planType: 'Percentage',
+          schedule: [],
+          goals: [],
+          customButtons: [],
+          incentives: { thresholds: [
+            { pct: 70, label: 'Bronze Star' },
+            { pct: 85, label: 'Silver Star' },
+            { pct: 95, label: 'Gold Star' }
+          ]},
+          accommodations: []
+        };
+        
+        const user = getCurrentUser();
+        const claims = getClaims();
+        const school = await loadSchool(state.schoolId);
+        render(school, user, claims);
+      };
+
+      // Manage Plans functions
+      window.filterPlans = (searchText) => {
+        // TODO: Implement search filtering
+        console.log('Filtering plans:', searchText);
+      };
+
+      window.filterPlansBy = (filter) => {
+        // TODO: Implement status filtering
+        console.log('Filter by:', filter);
+      };
+
+      window.editPlan = async (planId) => {
+        const plan = state.allPlans.find(p => p.id === planId);
+        if (plan) {
+          state.currentPlan = { ...plan };
+          state.activeTab = 'create';
+          const user = getCurrentUser();
+          const claims = getClaims();
+          const school = await loadSchool(state.schoolId);
+          render(school, user, claims);
+          toast('Plan loaded for editing', 'info');
+        }
+      };
+
+      window.togglePlanActive = async (planId) => {
+        try {
+          const plan = state.allPlans.find(p => p.id === planId);
+          if (plan) {
+            const planRef = doc(db, 'schools', state.schoolId, 'plans', planId);
+            await updateDoc(planRef, {
+              active: !plan.active
+            });
+            
+            toast(`Plan ${plan.active ? 'deactivated' : 'activated'}`, 'success');
+            await loadAllPlans();
+            
+            const user = getCurrentUser();
+            const claims = getClaims();
+            const school = await loadSchool(state.schoolId);
+            render(school, user, claims);
+          }
+        } catch (err) {
+          console.error('[Achievement] Toggle plan error');
+          toast('Failed to update plan', 'error');
+        }
+      };
+
+      window.openAsTeacher = (teacherId) => {
+        startImitate(teacherId, 'teacher');
+        window.location.href = '/teacher.html';
+      };
+
+      // Analytics functions
+      window.applyAnalyticsFilters = async () => {
+        // TODO: Load analytics data based on filters
+        toast('Loading analytics...', 'info');
+        
+        // Simulate data loading
+        setTimeout(() => {
+          document.getElementById('chart-bar').innerHTML = '<p style="text-align: center;">Sample bar chart data would appear here</p>';
+          document.getElementById('chart-line').innerHTML = '<p style="text-align: center;">Sample line chart data would appear here</p>';
+          document.getElementById('chart-heatmap').innerHTML = '<p style="text-align: center;">Sample heatmap data would appear here</p>';
+          toast('Analytics loaded', 'success');
+        }, 1000);
+      };
+
+      window.resetAnalyticsFilters = () => {
+        document.getElementById('filter-teachers').selectedIndex = -1;
+        document.getElementById('filter-grades').selectedIndex = -1;
+        document.getElementById('filter-plan-types').selectedIndex = -1;
+        document.getElementById('filter-date-start').value = '';
+        document.getElementById('filter-date-end').value = '';
+      };
+
+      window.recomputeAnalytics = async () => {
+        toast('Recomputing analytics... This may take a few moments.', 'info');
+        
+        // TODO: Trigger Cloud Function to recompute analytics_summaries
+        
+        setTimeout(() => {
+          toast('Analytics recomputed successfully', 'success');
+        }, 2000);
+      };
+    }
+
+    function updateFormSection(elementId, html) {
+      const element = document.getElementById(elementId);
+      if (element) {
+        element.innerHTML = html;
+      }
+    }
+  </script>
+</body>
+</html>

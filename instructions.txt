@@ -1,0 +1,23 @@
+**In `/scripts/` folder:**
+- Save `firebase-sdk.js`
+- Save `auth.js`
+- Save `data.js`
+- Save `router.js`
+- Save `components.js`
+
+**In `/styles/` folder:**
+- Save `ui.css`
+
+**In root `bmwarehouse/` folder:**
+- Save `login.html`
+- Save `teacher.html`
+- Save `specials.html`
+- Save `achievement.html`
+- Save `admin.html`
+- Save `parent.html`
+- Save `firebase.json`
+- Save `firestore.rules`
+- Save `.firebaserc`
+
+**In `/functions/` folder:**
+- Save `index.js` (this is the Cloud Function code)

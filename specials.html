@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="BMWarehouse Specials Dashboard">
+  <title>Specials Dashboard - BMWarehouse</title>
+  <script type="importmap">
+  {
+    "imports": {
+      "firebase/app": "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js",
+      "firebase/auth": "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js",
+      "firebase/firestore": "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"
+    }
+  }
+  </script>
+  <link rel="stylesheet" href="/styles/ui.css">
+  <style>
+    /* Page-specific styles */
+    .controls-bar {
+      background-color: var(--color-surface-elevated);
+      padding: var(--space-lg);
+      border-radius: var(--radius-lg);
+      margin: var(--space-lg) 0;
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-md);
+      align-items: center;
+    }
+
+    .day-selector {
+      display: flex;
+      gap: var(--space-xs);
+      flex-wrap: wrap;
+    }
+
+    .day-button {
+      min-width: var(--tap-target-min);
+      min-height: var(--tap-target-min);
+      padding: var(--space-sm) var(--space-md);
+      border: 2px solid var(--color-outline);
+      background-color: var(--color-surface-variant);
+      color: var(--color-on-surface);
+      border-radius: var(--radius-md);
+      font-weight: var(--font-weight-medium);
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+
+    .day-button:hover {
+      background-color: var(--color-surface-elevated);
+    }
+
+    .day-button.active {
+      background-color: var(--color-primary);
+      color: var(--color-on-primary);
+      border-color: var(--color-primary);
+    }
+
+    .class-section {
+      margin-bottom: var(--space-xl);
+    }
+
+    .class-header {
+      background-color: var(--color-surface-elevated);
+      padding: var(--space-md) var(--space-lg);
+      border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 2px solid var(--color-primary);
+    }
+
+    .class-title {
+      font-size: var(--font-size-xl);
+      font-weight: var(--font-weight-semibold);
+      color: var(--color-on-surface);
+      margin: 0;
+    }
+
+    .class-meta {
+      font-size: var(--font-size-sm);
+      color: var(--color-on-surface-variant);
+    }
+
+    .student-list {
+      background-color: var(--color-surface);
+      border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+      box-shadow: var(--shadow-2);
+    }
+
+    .student-row {
+      padding: var(--space-md) var(--space-lg);
+      border-bottom: 1px solid var(--color-outline-variant);
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: var(--space-md);
+      align-items: center;
+    }
+
+    .student-row:last-child {
+      border-bottom: none;
+      border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+    }
+
+    .student-info {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-xs);
+    }
+
+    .student-name {
+      font-size: var(--font-size-lg);
+      font-weight: var(--font-weight-medium);
+      color: var(--color-on-surface);
+    }
+
+    .student-name.blurred {
+      filter: blur(8px);
+      user-select: none;
+    }
+
+    .student-details {
+      font-size: var(--font-size-sm);
+      color: var(--color-on-surface-variant);
+      display: flex;
+      gap: var(--space-sm);
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .incident-chips-inline {
+      display: flex;
+      gap: var(--space-xs);
+      flex-wrap: wrap;
+    }
+
+    .scoring-controls {
+      display: flex;
+      gap: var(--space-sm);
+      align-items: center;
+    }
+
+    .comment-button {
+      min-width: var(--tap-target-min);
+      min-height: var(--tap-target-min);
+      padding: var(--space-sm);
+      border-radius: var(--radius-full);
+      background-color: var(--color-surface-variant);
+      border: 1px solid var(--color-outline);
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .comment-button:hover {
+      background-color: var(--color-surface-elevated);
+      border-color: var(--color-primary);
+    }
+
+    .comment-button.has-comment {
+      background-color: var(--color-primary);
+      color: var(--color-on-primary);
+      border-color: var(--color-primary);
+    }
+
+    .footer-tools {
+      position: sticky;
+      bottom: 0;
+      background-color: var(--color-surface-elevated);
+      padding: var(--space-lg);
+      box-shadow: var(--shadow-4);
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-md);
+      align-items: center;
+      justify-content: space-between;
+      z-index: var(--z-sticky);
+    }
+
+    .imitation-banner {
+      background-color: var(--color-warning);
+      color: #000;
+      padding: var(--space-md);
+      text-align: center;
+      font-weight: var(--font-weight-semibold);
+      position: sticky;
+      top: 64px;
+      z-index: var(--z-sticky);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-md);
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: var(--space-2xl);
+      color: var(--color-on-surface-variant);
+    }
+
+    .empty-state svg {
+      width: 64px;
+      height: 64px;
+      margin-bottom: var(--space-md);
+      opacity: 0.5;
+    }
+
+    @media (max-width: 767px) {
+      .student-row {
+        grid-template-columns: 1fr;
+        gap: var(--space-md);
+      }
+
+      .scoring-controls {
+        justify-content: flex-start;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+
+  <script type="module">
+    import { app } from '/scripts/firebase-sdk.js';
+    import { 
+      guardRoute, 
+      getCurrentUser, 
+      getClaims, 
+      getAuditContext,
+      getImitationState,
+      startImitate,
+      stopImitate,
+      getSchoolContext
+    } from '/scripts/auth.js';
+    import { 
+      getTodayKey,
+      loadSpecialsDay,
+      loadSchool,
+      loadStaff,
+      loadPlan,
+      loadDay,
+      loadAccommodations,
+      saveMatrixCell,
+      saveComment,
+      logCustomIncident
+    } from '/scripts/data.js';
+    import { parseQuery, onGuardReady } from '/scripts/router.js';
+    import { 
+      renderTopBar,
+      renderWeekPicker,
+      renderScoreStepper,
+      renderCheckPill,
+      renderIncidentChip,
+      toast
+    } from '/scripts/components.js';
+
+    // State
+    let state = {
+      schoolId: null, // Will be loaded from getSchoolContext()
+      currentDate: new Date(),
+      selectedDay: 'A', // A-E or M-F
+      selectedSubject: 'Art',
+      students: [],
+      groupedByClass: {},
+      blurNames: false,
+      specialsMode: 'AE', // or 'MF'
+      subjects: ['Art', 'Music', 'PE', 'LMC', 'PLTW'],
+      debounceTimers: new Map()
+    };
+
+    // Guard route - only specials, admin, or achievement
+    await guardRoute(['specials', 'admin', 'achievement']);
+
+    // Wait for body to be ready
+    onGuardReady(async () => {
+      try {
+        await init();
+      } catch (err) {
+        console.error('[Specials] Init error');
+        document.getElementById('app').innerHTML = `
+          <div class="container" style="padding: var(--space-xl);">
+            <div class="card">
+              <h2>Error Loading Dashboard</h2>
+              <p>Unable to load the specials dashboard. Please try refreshing the page.</p>
+            </div>
+          </div>
+        `;
+      }
+    });
+
+    async function init() {
+      // Get school context first
+      const { schoolId, user, claims } = await getSchoolContext();
+      state.schoolId = schoolId;
+
+      // Load school configuration
+      const school = await loadSchool(state.schoolId);
+      
+      // Apply theme
+      if (school?.theme?.mode) {
+        document.documentElement.setAttribute('data-theme', school.theme.mode);
+      }
+
+      // Set specials mode (A-E vs M-F)
+      state.specialsMode = school?.specialsMode || 'AE';
+      
+      // Set initial day based on mode
+      state.selectedDay = state.specialsMode === 'AE' ? 'A' : 'M';
+
+      // Load students for selected day and subject
+      await loadStudentsForDay();
+
+      render(school, user, claims);
+      setupListeners();
+    }
+
+    async function loadStudentsForDay() {
+      // Load all students who have this subject on this day
+      state.students = await loadSpecialsDay(
+        state.schoolId,
+        state.selectedDay,
+        state.selectedSubject
+      );
+
+      // Load day data for each student
+      const dayKey = getTodayKey(state.currentDate);
+      for (const student of state.students) {
+        if (student.plan?.id) {
+          student.dayData = await loadDay(state.schoolId, student.plan.id, dayKey);
+          student.accommodations = await loadAccommodations(state.schoolId, student.id);
+        }
+      }
+
+      // Group students by their classroom teacher
+      state.groupedByClass = groupByTeacher(state.students);
+    }
+
+    function groupByTeacher(students) {
+      const groups = {};
+      
+      for (const student of students) {
+        const teacherId = student.teacherId || 'unassigned';
+        if (!groups[teacherId]) {
+          groups[teacherId] = {
+            teacherId,
+            teacherName: getTeacherName(teacherId),
+            students: []
+          };
+        }
+        groups[teacherId].students.push(student);
+      }
+
+      // Sort by teacher name for consistent display order
+      return Object.values(groups).sort((a, b) => 
+        a.teacherName.localeCompare(b.teacherName)
+      );
+    }
+
+    function getTeacherName(teacherId) {
+      // TODO: Load actual teacher names from staff collection
+      const teacherNames = {
+        'teacher_001': 'Ms. Bruestle',
+        'teacher_002': 'Mr. Johnson',
+        'teacher_003': 'Mrs. Schroeder',
+        'teacher_004': 'Ms. Witherspoon',
+        'teacher_005': 'Mr. Burris'
+      };
+      return teacherNames[teacherId] || teacherId;
+    }
+
+    function render(school, user, claims) {
+      const imitationState = getImitationState();
+      const roles = claims?.roles || [];
+
+      const app = document.getElementById('app');
+      
+      let html = renderTopBar({
+        school,
+        user,
+        claims,
+        onMenu: () => {
+          toast('Menu coming soon', 'info');
+        }
+      });
+
+      // Imitation banner
+      if (imitationState) {
+        html += `
+          <div class="imitation-banner">
+            <span>⚠️ IMITATION MODE: Acting as ${imitationState.asRole}</span>
+            <button class="btn btn--text" onclick="window.stopImitationMode()" style="color: #000;">
+              Stop Imitation
+            </button>
+          </div>
+        `;
+      }
+
+      html += '<div class="container">';
+
+      // Date picker
+      html += renderWeekPicker({
+        date: state.currentDate,
+        onChange: (newDate) => {
+          state.currentDate = new Date(newDate);
+          init();
+        }
+      });
+
+      // Controls bar
+      html += renderControlsBar();
+
+      // Content
+      if (state.groupedByClass.length === 0) {
+        html += renderEmptyState();
+      } else {
+        for (const classGroup of state.groupedByClass) {
+          html += renderClassSection(classGroup);
+        }
+      }
+
+      html += '</div>'; // container
+
+      // Footer tools
+      html += renderFooterTools();
+
+      app.innerHTML = html;
+    }
+
+    function renderControlsBar() {
+      const days = state.specialsMode === 'AE' 
+        ? ['A', 'B', 'C', 'D', 'E'] 
+        : ['M', 'T', 'W', 'TH', 'F'];
+
+      let html = '<div class="controls-bar">';
+      
+      // Day selector
+      html += '<div style="flex: 1;">';
+      html += '<label class="form-label">Day</label>';
+      html += '<div class="day-selector">';
+      for (const day of days) {
+        html += `
+          <button 
+            class="day-button ${state.selectedDay === day ? 'active' : ''}"
+            onclick="window.selectDay('${day}')"
+          >
+            ${day}
+          </button>
+        `;
+      }
+      html += '</div>';
+      html += '</div>';
+
+      // Subject selector
+      html += '<div style="flex: 1;">';
+      html += '<label class="form-label" for="subject-select">Subject</label>';
+      html += `
+        <select 
+          id="subject-select" 
+          class="form-select"
+          onchange="window.selectSubject(this.value)"
+        >
+      `;
+      for (const subject of state.subjects) {
+        html += `
+          <option value="${subject}" ${state.selectedSubject === subject ? 'selected' : ''}>
+            ${subject}
+          </option>
+        `;
+      }
+      html += '</select>';
+      html += '</div>';
+
+      html += '</div>';
+      return html;
+    }
+
+    function renderClassSection(classGroup) {
+      let html = '<div class="class-section">';
+      
+      // Class header
+      html += '<div class="class-header">';
+      html += '<div>';
+      html += `<h2 class="class-title">${classGroup.teacherName} – ${state.selectedSubject}</h2>`;
+      html += `<div class="class-meta">${classGroup.students.length} students</div>`;
+      html += '</div>';
+      html += '</div>';
+
+      // Student list
+      html += '<div class="student-list">';
+      
+      for (const student of classGroup.students) {
+        html += renderStudentRow(student);
+      }
+      
+      html += '</div>';
+      html += '</div>';
+      
+      return html;
+    }
+
+    function renderStudentRow(student) {
+      if (!student.plan) {
+        return `
+          <div class="student-row">
+            <div class="student-info">
+              <div class="student-name ${state.blurNames ? 'blurred' : ''}">${student.name}</div>
+              <div class="student-details">
+                <span>Grade ${student.grade}</span>
+                <span class="chip chip--warning" style="font-size: var(--font-size-xs);">No plan</span>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      const plan = student.plan;
+      const dayData = student.dayData || { matrix: {}, comments: { specials: {} } };
+      
+      // Find the period for this subject on this day
+      const period = plan.schedule?.find(p => p.label === state.selectedDay);
+      if (!period) {
+        return `
+          <div class="student-row">
+            <div class="student-info">
+              <div class="student-name ${state.blurNames ? 'blurred' : ''}">${student.name}</div>
+              <div class="student-details">
+                <span>Grade ${student.grade}</span>
+                <span class="chip chip--warning" style="font-size: var(--font-size-xs);">Not scheduled</span>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      const periodData = dayData.matrix?.[period.id] || {};
+      const specialsComments = dayData.comments?.specials || {};
+      const subjectComment = specialsComments[state.selectedSubject];
+
+      let html = '<div class="student-row">';
+      
+      // Student info column
+      html += '<div class="student-info">';
+      html += `<div class="student-name ${state.blurNames ? 'blurred' : ''}">${student.name}</div>`;
+      html += '<div class="student-details">';
+      html += `<span>Grade ${student.grade}</span>`;
+      
+      // Custom incident chips
+      if (plan.customButtons && plan.customButtons.length > 0) {
+        html += '<div class="incident-chips-inline">';
+        for (const button of plan.customButtons) {
+          html += renderIncidentChip({
+            label: button.label,
+            colorHex: button.colorHex,
+            onTap: () => logIncident(student.id, button, null),
+            onHold: () => openIncidentNote(student.id, button)
+          });
+        }
+        html += '</div>';
+      }
+      
+      html += '</div>'; // student-details
+      html += '</div>'; // student-info
+
+      // Scoring controls column
+      html += '<div class="scoring-controls">';
+      
+      // Render goals for this period
+      for (const goal of plan.goals) {
+        const value = periodData[goal.id];
+        const cellKey = `${student.id}-${period.id}-${goal.id}`;
+        
+        if (goal.kind === 'stepper') {
+          html += renderScoreStepper(
+            value,
+            (newValue) => saveCellValue(student.id, period.id, goal.id, newValue),
+            cellKey
+          );
+        } else {
+          html += renderCheckPill(
+            !!value,
+            (newValue) => saveCellValue(student.id, period.id, goal.id, newValue),
+            cellKey
+          );
+        }
+      }
+
+      // Comment button
+      html += `
+        <button 
+          class="comment-button ${subjectComment ? 'has-comment' : ''}"
+          onclick="window.openSpecialsComment('${student.id}')"
+          aria-label="Add comment"
+          title="${subjectComment ? 'Edit comment' : 'Add comment'}"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 9h12v2H6V9zm8 5H6v-2h8v2zm4-6H6V6h12v2z"/>
+          </svg>
+        </button>
+      `;
+      
+      html += '</div>'; // scoring-controls
+      html += '</div>'; // student-row
+      
+      return html;
+    }
+
+    function renderEmptyState() {
+      return `
+        <div class="empty-state">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+          </svg>
+          <h3>No Students Scheduled</h3>
+          <p>There are no students scheduled for ${state.selectedSubject} on Day ${state.selectedDay}.</p>
+          <p style="font-size: var(--font-size-sm); margin-top: var(--space-md);">
+            Try selecting a different day or subject above.
+          </p>
+        </div>
+      `;
+    }
+
+    function renderFooterTools() {
+      return `
+        <div class="footer-tools">
+          <div class="d-flex gap-md align-center">
+            <label style="display: flex; align-items: center; gap: var(--space-sm); cursor: pointer;">
+              <input 
+                type="checkbox" 
+                ${state.blurNames ? 'checked' : ''}
+                onchange="window.toggleBlurNames()"
+              />
+              <span>Blur Names</span>
+            </label>
+          </div>
+          
+          <div class="d-flex gap-md">
+            <button class="btn btn--outline" onclick="window.viewAccommodations()">
+              Accommodations
+            </button>
+            <button class="btn btn--primary" onclick="window.saveAllChanges()">
+              💾 Save All
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    function saveCellValue(studentId, periodId, goalId, value) {
+      const student = state.students.find(s => s.id === studentId);
+      if (!student || !student.plan) return;
+
+      const dayKey = getTodayKey(state.currentDate);
+      const cellKey = `${studentId}-${periodId}-${goalId}`;
+
+      // Optimistic update
+      if (!student.dayData) {
+        student.dayData = { matrix: {}, comments: { specials: {} } };
+      }
+      if (!student.dayData.matrix[periodId]) {
+        student.dayData.matrix[periodId] = {};
+      }
+      student.dayData.matrix[periodId][goalId] = value;
+
+      // Debounce the write
+      if (state.debounceTimers.has(cellKey)) {
+        clearTimeout(state.debounceTimers.get(cellKey));
+      }
+
+      const timer = setTimeout(async () => {
+        try {
+          const ctx = getAuditContext();
+          await saveMatrixCell(
+            state.schoolId,
+            student.plan.id,
+            dayKey,
+            periodId,
+            goalId,
+            value,
+            ctx
+          );
+          state.debounceTimers.delete(cellKey);
+          
+          // Reload day data to get updated totals
+          student.dayData = await loadDay(state.schoolId, student.plan.id, dayKey);
+          
+          toast('Saved', 'success', 1500);
+        } catch (err) {
+          console.error('[Specials] Save cell error');
+          toast('Failed to save. Please try again.', 'error');
+        }
+      }, 400);
+
+      state.debounceTimers.set(cellKey, timer);
+    }
+
+    async function logIncident(studentId, button, note) {
+      const student = state.students.find(s => s.id === studentId);
+      if (!student || !student.plan) return;
+
+      const dayKey = getTodayKey(state.currentDate);
+      const ctx = getAuditContext();
+
+      try {
+        await logCustomIncident(
+          state.schoolId,
+          student.plan.id,
+          dayKey,
+          button,
+          note,
+          'specials',
+          ctx
+        );
+        
+        toast(`${button.label} logged`, 'success');
+        
+        // Reload day data
+        student.dayData = await loadDay(state.schoolId, student.plan.id, dayKey);
+        
+        const user = getCurrentUser();
+        const claims = getClaims();
+        const school = await loadSchool(state.schoolId);
+        render(school, user, claims);
+      } catch (err) {
+        console.error('[Specials] Log incident error');
+        toast('Failed to log incident', 'error');
+      }
+    }
+
+    function openIncidentNote(studentId, button) {
+      const note = prompt(`Add note for "${button.label}":`);
+      if (note !== null) {
+        logIncident(studentId, button, note);
+      }
+    }
+
+    function setupListeners() {
+      // Global functions for inline handlers
+      window.selectDay = async (day) => {
+        state.selectedDay = day;
+        await loadStudentsForDay();
+        const user = getCurrentUser();
+        const claims = getClaims();
+        const school = await loadSchool(state.schoolId);
+        render(school, user, claims);
+      };
+
+      window.selectSubject = async (subject) => {
+        state.selectedSubject = subject;
+        await loadStudentsForDay();
+        const user = getCurrentUser();
+        const claims = getClaims();
+        const school = await loadSchool(state.schoolId);
+        render(school, user, claims);
+      };
+
+      window.toggleBlurNames = async () => {
+        state.blurNames = !state.blurNames;
+        const user = getCurrentUser();
+        const claims = getClaims();
+        const school = await loadSchool(state.schoolId);
+        render(school, user, claims);
+      };
+
+      window.openSpecialsComment = async (studentId) => {
+        const student = state.students.find(s => s.id === studentId);
+        if (!student || !student.plan) return;
+
+        const dayData = student.dayData || { comments: { specials: {} } };
+        const specialsComments = dayData.comments?.specials || {};
+        const currentComment = specialsComments[state.selectedSubject] || '';
+
+        const comment = prompt(`Comment for ${student.name} (${state.selectedSubject}):`, currentComment);
+        
+        if (comment !== null) {
+          await saveSpecialsComment(student.plan.id, comment.trim());
+        }
+      };
+
+      window.viewAccommodations = () => {
+        toast('Accommodations drawer coming soon', 'info');
+      };
+
+      window.saveAllChanges = async () => {
+        // Wait for all pending debounced writes
+        const timers = Array.from(state.debounceTimers.values());
+        for (const timer of timers) {
+          clearTimeout(timer);
+        }
+        
+        toast('All changes saved', 'success');
+      };
+
+      window.stopImitationMode = () => {
+        stopImitate();
+        init();
+      };
+
+      // Listen for imitation events
+      window.addEventListener('imitation-active', () => {
+        init();
+      });
+
+      window.addEventListener('imitation-stopped', () => {
+        init();
+      });
+    }
+
+    async function saveSpecialsComment(planId, comment) {
+      const dayKey = getTodayKey(state.currentDate);
+      const ctx = getAuditContext();
+
+      try {
+        await saveComment(
+          state.schoolId,
+          planId,
+          dayKey,
+          state.selectedSubject, // Use subject as role for specials comments
+          comment,
+          ctx
+        );
+        
+        toast('Comment saved', 'success');
+        
+        // Reload data
+        await loadStudentsForDay();
+        const user = getCurrentUser();
+        const claims = getClaims();
+        const school = await loadSchool(state.schoolId);
+        render(school, user, claims);
+      } catch (err) {
+        console.error('[Specials] Save comment error');
+        toast('Failed to save comment', 'error');
+      }
+    }
+  </script>
+</body>
+</html>
