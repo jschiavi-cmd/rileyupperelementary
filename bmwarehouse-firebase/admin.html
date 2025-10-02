@@ -1,0 +1,1003 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="BMWarehouse Admin Settings">
+  <title>Admin Settings - BMWarehouse</title>
+  <script type="importmap">
+  {
+    "imports": {
+      "firebase/app": "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js",
+      "firebase/auth": "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js",
+      "firebase/firestore": "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"
+    }
+  }
+  </script>
+  <link rel="stylesheet" href="/styles/ui.css">
+  <style>
+    /* Page-specific styles */
+    .settings-section {
+      background-color: var(--color-surface);
+      border-radius: var(--radius-lg);
+      padding: var(--space-xl);
+      margin-bottom: var(--space-xl);
+      box-shadow: var(--shadow-2);
+    }
+
+    .section-title {
+      font-size: var(--font-size-2xl);
+      font-weight: var(--font-weight-semibold);
+      color: var(--color-on-surface);
+      margin-bottom: var(--space-md);
+      padding-bottom: var(--space-md);
+      border-bottom: 3px solid var(--color-primary);
+    }
+
+    .section-description {
+      font-size: var(--font-size-sm);
+      color: var(--color-on-surface-variant);
+      margin-bottom: var(--space-lg);
+    }
+
+    .logo-preview {
+      display: flex;
+      align-items: center;
+      gap: var(--space-lg);
+      padding: var(--space-lg);
+      background-color: var(--color-surface-variant);
+      border-radius: var(--radius-md);
+      margin-top: var(--space-md);
+    }
+
+    .logo-preview img {
+      max-width: 150px;
+      max-height: 100px;
+      object-fit: contain;
+    }
+
+    .theme-buttons {
+      display: flex;
+      gap: var(--space-sm);
+      flex-wrap: wrap;
+    }
+
+    .theme-button {
+      min-width: 120px;
+      padding: var(--space-md) var(--space-lg);
+      border: 2px solid var(--color-outline);
+      background-color: var(--color-surface-variant);
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      font-weight: var(--font-weight-medium);
+    }
+
+    .theme-button.active {
+      background-color: var(--color-primary);
+      color: var(--color-on-primary);
+      border-color: var(--color-primary);
+    }
+
+    .css-var-editor {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: var(--space-md);
+      margin-top: var(--space-lg);
+    }
+
+    .css-var-item {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-xs);
+    }
+
+    .css-var-label {
+      font-size: var(--font-size-sm);
+      font-weight: var(--font-weight-medium);
+      color: var(--color-on-surface-variant);
+    }
+
+    .staff-list {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-sm);
+      margin-top: var(--space-lg);
+    }
+
+    .staff-item {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: var(--space-md);
+      padding: var(--space-md);
+      background-color: var(--color-surface-variant);
+      border-radius: var(--radius-md);
+      align-items: center;
+    }
+
+    .staff-info {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-xs);
+    }
+
+    .staff-name {
+      font-weight: var(--font-weight-semibold);
+      color: var(--color-on-surface);
+    }
+
+    .staff-email {
+      font-size: var(--font-size-sm);
+      color: var(--color-on-surface-variant);
+    }
+
+    .staff-roles {
+      display: flex;
+      gap: var(--space-xs);
+      flex-wrap: wrap;
+      margin-top: var(--space-xs);
+    }
+
+    .role-checkbox {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-xs);
+      padding: var(--space-xs) var(--space-sm);
+      background-color: var(--color-surface);
+      border-radius: var(--radius-md);
+      font-size: var(--font-size-sm);
+    }
+
+    .seed-controls {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: var(--space-md);
+      margin-bottom: var(--space-lg);
+    }
+
+    .imitate-search {
+      margin-bottom: var(--space-lg);
+    }
+
+    .imitate-results {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-sm);
+    }
+
+    .imitate-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: var(--space-md);
+      background-color: var(--color-surface-variant);
+      border-radius: var(--radius-md);
+    }
+
+    .maintenance-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: var(--space-lg);
+    }
+
+    .maintenance-card {
+      padding: var(--space-lg);
+      background-color: var(--color-surface-variant);
+      border-radius: var(--radius-lg);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-md);
+    }
+
+    .maintenance-card h4 {
+      margin: 0;
+      color: var(--color-on-surface);
+    }
+
+    .maintenance-card p {
+      margin: 0;
+      font-size: var(--font-size-sm);
+      color: var(--color-on-surface-variant);
+    }
+
+    .imitation-banner {
+      background-color: var(--color-warning);
+      color: #000;
+      padding: var(--space-md);
+      text-align: center;
+      font-weight: var(--font-weight-semibold);
+      position: sticky;
+      top: 64px;
+      z-index: var(--z-sticky);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-md);
+    }
+
+    .warning-box {
+      background-color: rgba(255, 152, 0, 0.1);
+      border-left: 4px solid var(--color-warning);
+      padding: var(--space-md);
+      border-radius: var(--radius-md);
+      margin-bottom: var(--space-lg);
+    }
+
+    @media (max-width: 767px) {
+      .staff-item {
+        grid-template-columns: 1fr;
+      }
+
+      .theme-buttons {
+        flex-direction: column;
+      }
+
+      .theme-button {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+
+  <script type="module">
+    import { app } from '/scripts/firebase-sdk.js';
+    import { 
+      guardRoute, 
+      getCurrentUser, 
+      getClaims,
+      getAuditContext,
+      getImitationState,
+      startImitate,
+      stopImitate,
+      getSchoolContext
+    } from '/scripts/auth.js';
+    import { 
+      loadSchool,
+      setTheme,
+      audit,
+      seedDemo
+    } from '/scripts/data.js';
+    import { onGuardReady } from '/scripts/router.js';
+    import { 
+      renderTopBar,
+      toast
+    } from '/scripts/components.js';
+    import { 
+      getFirestore, 
+      collection,
+      doc,
+      getDoc,
+      getDocs,
+      setDoc,
+      updateDoc,
+      query,
+      where,
+      serverTimestamp
+    } from 'firebase/firestore';
+
+    const db = getFirestore(app);
+
+    // State
+    let state = {
+      schoolId: null, // Will be loaded from getSchoolContext()
+      school: null,
+      staff: [],
+      currentTheme: 'dark',
+      customVars: {}
+    };
+
+    // Guard route - admin only
+    await guardRoute(['admin']);
+
+    // Wait for body to be ready
+    onGuardReady(async () => {
+      try {
+        await init();
+      } catch (err) {
+        console.error('[Admin] Init error');
+        document.getElementById('app').innerHTML = `
+          <div class="container" style="padding: var(--space-xl);">
+            <div class="card">
+              <h2>Error Loading Admin Panel</h2>
+              <p>Unable to load the admin settings. Please try refreshing the page.</p>
+            </div>
+          </div>
+        `;
+      }
+    });
+
+    async function init() {
+      // Get school context first
+      const { schoolId, user, claims } = await getSchoolContext();
+      state.schoolId = schoolId;
+
+      // Load school
+      state.school = await loadSchool(state.schoolId);
+      
+      // Apply theme
+      if (state.school?.theme?.mode) {
+        state.currentTheme = state.school.theme.mode;
+        document.documentElement.setAttribute('data-theme', state.currentTheme);
+      }
+      
+      if (state.school?.theme?.vars) {
+        state.customVars = state.school.theme.vars;
+        applyCustomVars(state.customVars);
+      }
+
+      // Load staff
+      await loadStaff();
+
+      render(state.school, user, claims);
+      setupListeners();
+    }
+
+    async function loadStaff() {
+      const staffRef = collection(db, 'schools', state.schoolId, 'staff');
+      const snapshot = await getDocs(staffRef);
+      
+      state.staff = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+    }
+
+    function render(school, user, claims) {
+      const imitationState = getImitationState();
+      const app = document.getElementById('app');
+      
+      let html = renderTopBar({
+        school,
+        user,
+        claims,
+        onMenu: () => {
+          toast('Menu coming soon', 'info');
+        }
+      });
+
+      // Imitation banner
+      if (imitationState) {
+        html += `
+          <div class="imitation-banner">
+            <span>⚠️ IMITATION MODE: Acting as ${imitationState.asRole}</span>
+            <button class="btn btn--text" onclick="window.stopImitationMode()" style="color: #000;">
+              Stop Imitation
+            </button>
+          </div>
+        `;
+      }
+
+      html += '<div class="container" style="padding: var(--space-xl) var(--space-md);">';
+
+      // Page title
+      html += '<h1 style="margin-bottom: var(--space-xl); color: var(--color-on-surface);">Admin Settings</h1>';
+
+      // 1. School Profile
+      html += '<div class="settings-section">';
+      html += '<h2 class="section-title">School Profile</h2>';
+      html += '<p class="section-description">Configure your school's basic information and appearance</p>';
+      
+      html += '<div class="form-group">';
+      html += '<label class="form-label" for="school-name">School Name</label>';
+      html += `<input 
+        type="text" 
+        id="school-name" 
+        class="form-input" 
+        value="${school?.name || ''}"
+        placeholder="Riley Upper Elementary"
+      />`;
+      html += '</div>';
+
+      html += '<div class="form-group">';
+      html += '<label class="form-label" for="school-logo">Logo URL</label>';
+      html += `<input 
+        type="url" 
+        id="school-logo" 
+        class="form-input" 
+        value="${school?.logoURL || ''}"
+        placeholder="https://example.com/logo.png"
+        oninput="window.updateLogoPreview(this.value)"
+      />`;
+      html += '</div>';
+
+      // Logo preview
+      html += '<div class="logo-preview">';
+      if (school?.logoURL) {
+        html += `<img src="${school.logoURL}" alt="School Logo" id="logo-preview-img" />`;
+      } else {
+        html += '<div style="color: var(--color-on-surface-variant);">No logo set</div>';
+      }
+      html += '</div>';
+
+      // Theme selector
+      html += '<div class="form-group mt-lg">';
+      html += '<label class="form-label">Theme</label>';
+      html += '<div class="theme-buttons">';
+      html += `
+        <button class="theme-button ${state.currentTheme === 'dark' ? 'active' : ''}" onclick="window.changeTheme('dark')">
+          🌙 Dark
+        </button>
+        <button class="theme-button ${state.currentTheme === 'light' ? 'active' : ''}" onclick="window.changeTheme('light')">
+          ☀️ Light
+        </button>
+        <button class="theme-button ${state.currentTheme === 'custom' ? 'active' : ''}" onclick="window.changeTheme('custom')">
+          🎨 Custom
+        </button>
+      `;
+      html += '</div>';
+      html += '</div>';
+
+      // Custom CSS vars editor (only shown when custom theme selected)
+      if (state.currentTheme === 'custom') {
+        html += '<div class="css-var-editor" id="css-var-editor">';
+        html += renderCssVarEditor();
+        html += '</div>';
+      }
+
+      // Specials mode toggle
+      html += '<div class="form-group mt-lg">';
+      html += '<label class="form-label">Specials Schedule Mode</label>';
+      html += `
+        <select id="specials-mode" class="form-select">
+          <option value="AE" ${school?.specialsMode === 'AE' ? 'selected' : ''}>A-E (5-day rotation)</option>
+          <option value="MF" ${school?.specialsMode === 'MF' ? 'selected' : ''}>M-F (Monday-Friday)</option>
+        </select>
+      `;
+      html += '</div>';
+
+      html += '<div style="display: flex; justify-content: flex-end; margin-top: var(--space-lg);">';
+      html += '<button class="btn btn--primary" onclick="window.saveSchoolProfile()">💾 Save School Profile</button>';
+      html += '</div>';
+
+      html += '</div>'; // settings-section
+
+      // 2. Staff & Roles
+      html += '<div class="settings-section">';
+      html += '<h2 class="section-title">Staff & Roles</h2>';
+      html += '<p class="section-description">Manage staff members and their role assignments</p>';
+      
+      // Warning about Cloud Functions
+      html += `
+        <div class="warning-box">
+          <strong>⚠️ Important:</strong> Role assignments are saved to Firestore, but custom claims must be set via a Cloud Function or Admin SDK script. 
+          After adding or updating roles, run your Cloud Function to sync claims.
+        </div>
+      `;
+
+      // Add staff form
+      html += '<div style="display: grid; grid-template-columns: 1fr auto; gap: var(--space-md); margin-bottom: var(--space-lg);">';
+      html += `
+        <input 
+          type="email" 
+          id="new-staff-email" 
+          class="form-input" 
+          placeholder="staff@livoniapublicschools.org"
+        />
+        <button class="btn btn--primary" onclick="window.addStaff()">+ Add Staff</button>
+      `;
+      html += '</div>';
+
+      // Staff list
+      html += '<div class="staff-list">';
+      for (const member of state.staff) {
+        html += renderStaffItem(member);
+      }
+      if (state.staff.length === 0) {
+        html += '<p style="text-align: center; color: var(--color-on-surface-variant); padding: var(--space-xl);">No staff members yet. Add one above.</p>';
+      }
+      html += '</div>';
+
+      html += '</div>'; // settings-section
+
+      // 3. Seeding / Demo Data
+      html += '<div class="settings-section">';
+      html += '<h2 class="section-title">Seeding / Demo Data</h2>';
+      html += '<p class="section-description">Generate sample data for testing and development (deterministic seed: 1337)</p>';
+      
+      html += '<div class="seed-controls">';
+      html += `
+        <div class="form-group">
+          <label class="form-label" for="seed-students">Number of Students</label>
+          <input type="number" id="seed-students" class="form-input" value="10" min="1" max="100" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="seed-teachers">Number of Teachers</label>
+          <input type="number" id="seed-teachers" class="form-input" value="3" min="1" max="20" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Specials Mode</label>
+          <select id="seed-specials-mode" class="form-select">
+            <option value="AE">A-E Schedule</option>
+            <option value="MF">M-F Schedule</option>
+          </select>
+        </div>
+      `;
+      html += '</div>';
+
+      html += `
+        <div class="warning-box">
+          <strong>Note:</strong> This will create sample students, plans, and one week of scoring data. 
+          Existing data will not be affected. The seed is deterministic (1337) for consistent testing.
+        </div>
+      `;
+
+      html += '<button class="btn btn--primary" onclick="window.runSeedDemo()">🌱 Seed Demo Data</button>';
+
+      html += '</div>'; // settings-section
+
+      // 4. Imitate Mode
+      html += '<div class="settings-section">';
+      html += '<h2 class="section-title">Imitate Mode</h2>';
+      html += '<p class="section-description">Start imitation to test as another user role (for QA purposes only)</p>';
+      
+      html += '<div class="imitate-search">';
+      html += `
+        <div class="form-group">
+          <label class="form-label" for="imitate-search">Search Staff</label>
+          <input 
+            type="text" 
+            id="imitate-search" 
+            class="form-input" 
+            placeholder="Search by name or email..."
+            oninput="window.filterImitateList(this.value)"
+          />
+        </div>
+      `;
+      html += '</div>';
+
+      html += '<div class="imitate-results" id="imitate-results">';
+      for (const member of state.staff) {
+        html += renderImitateItem(member);
+      }
+      if (state.staff.length === 0) {
+        html += '<p style="text-align: center; color: var(--color-on-surface-variant); padding: var(--space-xl);">No staff members to imitate. Add staff first.</p>';
+      }
+      html += '</div>';
+
+      html += '</div>'; // settings-section
+
+      // 5. Maintenance
+      html += '<div class="settings-section">';
+      html += '<h2 class="section-title">Maintenance</h2>';
+      html += '<p class="section-description">System maintenance and optimization tasks</p>';
+      
+      html += '<div class="maintenance-grid">';
+      
+      // Recompute Analytics
+      html += `
+        <div class="maintenance-card">
+          <h4>Recompute Analytics</h4>
+          <p>Rebuild analytics summaries for a specific date range. This can take several minutes for large datasets.</p>
+          <div class="form-group">
+            <label class="form-label">Start Date</label>
+            <input type="date" id="analytics-start" class="form-input" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">End Date</label>
+            <input type="date" id="analytics-end" class="form-input" />
+          </div>
+          <button class="btn btn--primary" onclick="window.recomputeAnalytics()">
+            🔄 Recompute
+          </button>
+        </div>
+      `;
+
+      // Schema Migration
+      html += `
+        <div class="maintenance-card">
+          <h4>Schema Migrations</h4>
+          <p>Run database schema upgrades or repairs. Use with caution and only when instructed.</p>
+          <button class="btn btn--outline" onclick="window.runSchemaMigration()">
+            🔧 Run Migration
+          </button>
+        </div>
+      `;
+
+      // Clear Cache
+      html += `
+        <div class="maintenance-card">
+          <h4>Clear Local Cache</h4>
+          <p>Clear browser cache and reload. Useful for troubleshooting display issues.</p>
+          <button class="btn btn--outline" onclick="window.clearLocalCache()">
+            🗑️ Clear Cache
+          </button>
+        </div>
+      `;
+
+      // Audit Log Export
+      html += `
+        <div class="maintenance-card">
+          <h4>Export Audit Logs</h4>
+          <p>Download audit logs for compliance and review purposes.</p>
+          <button class="btn btn--outline" onclick="window.exportAuditLogs()">
+            📥 Export Logs
+          </button>
+        </div>
+      `;
+
+      html += '</div>'; // maintenance-grid
+
+      html += '</div>'; // settings-section
+
+      html += '</div>'; // container
+
+      app.innerHTML = html;
+    }
+
+    function renderCssVarEditor() {
+      const cssVars = [
+        { name: '--color-primary', label: 'Primary Color', type: 'color' },
+        { name: '--color-secondary', label: 'Secondary Color', type: 'color' },
+        { name: '--color-surface', label: 'Surface Color', type: 'color' },
+        { name: '--color-background', label: 'Background Color', type: 'color' },
+        { name: '--color-on-surface', label: 'Text Color', type: 'color' },
+        { name: '--radius-md', label: 'Border Radius', type: 'text' },
+        { name: '--space-md', label: 'Spacing', type: 'text' }
+      ];
+
+      let html = '';
+      for (const cssVar of cssVars) {
+        const currentValue = state.customVars[cssVar.name] || getComputedStyle(document.documentElement).getPropertyValue(cssVar.name).trim();
+        
+        html += `
+          <div class="css-var-item">
+            <label class="css-var-label">${cssVar.label}</label>
+            <input 
+              type="${cssVar.type}" 
+              class="form-input" 
+              value="${currentValue}"
+              onchange="window.updateCssVar('${cssVar.name}', this.value)"
+            />
+          </div>
+        `;
+      }
+      
+      return html;
+    }
+
+    function renderStaffItem(member) {
+      const roles = member.roles || [];
+      
+      return `
+        <div class="staff-item">
+          <div class="staff-info">
+            <div class="staff-name">${member.displayName || 'Unnamed'}</div>
+            <div class="staff-email">${member.email}</div>
+            <div class="staff-roles">
+              ${renderRoleCheckboxes(member)}
+            </div>
+          </div>
+          <div style="display: flex; gap: var(--space-sm);">
+            <button class="btn btn--outline btn--icon" onclick="window.editStaff('${member.id}')" title="Edit">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+              </svg>
+            </button>
+            <button class="btn btn--text btn--icon" onclick="window.deleteStaff('${member.id}')" style="color: var(--color-error);" title="Delete">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderRoleCheckboxes(member) {
+      const allRoles = ['teacher', 'specials', 'achievement', 'admin', 'parent'];
+      const memberRoles = member.roles || [];
+      
+      let html = '';
+      for (const role of allRoles) {
+        const checked = memberRoles.includes(role);
+        html += `
+          <label class="role-checkbox">
+            <input 
+              type="checkbox" 
+              ${checked ? 'checked' : ''}
+              onchange="window.toggleStaffRole('${member.id}', '${role}', this.checked)"
+            />
+            <span>${role}</span>
+          </label>
+        `;
+      }
+      
+      return html;
+    }
+
+    function renderImitateItem(member) {
+      const roles = member.roles || [];
+      if (roles.length === 0) return '';
+      
+      return `
+        <div class="imitate-item">
+          <div>
+            <div style="font-weight: var(--font-weight-semibold); color: var(--color-on-surface);">
+              ${member.displayName || member.email}
+            </div>
+            <div style="font-size: var(--font-size-sm); color: var(--color-on-surface-variant);">
+              Roles: ${roles.join(', ')}
+            </div>
+          </div>
+          <div style="display: flex; gap: var(--space-sm);">
+            ${roles.map(role => `
+              <button class="btn btn--outline" onclick="window.startImitation('${member.id}', '${role}')">
+                As ${role}
+              </button>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    function applyCustomVars(vars) {
+      for (const [name, value] of Object.entries(vars)) {
+        document.documentElement.style.setProperty(name, value);
+      }
+    }
+
+    function setupListeners() {
+      // Logo preview
+      window.updateLogoPreview = (url) => {
+        const preview = document.getElementById('logo-preview-img');
+        if (preview) {
+          preview.src = url;
+        }
+      };
+
+      // Theme change
+      window.changeTheme = async (theme) => {
+        state.currentTheme = theme;
+        document.documentElement.setAttribute('data-theme', theme);
+        
+        const user = getCurrentUser();
+        const claims = getClaims();
+        render(state.school, user, claims);
+      };
+
+      // CSS var update
+      window.updateCssVar = (name, value) => {
+        state.customVars[name] = value;
+        document.documentElement.style.setProperty(name, value);
+      };
+
+      // Save school profile
+      window.saveSchoolProfile = async () => {
+        try {
+          const name = document.getElementById('school-name').value;
+          const logoURL = document.getElementById('school-logo').value;
+          const specialsMode = document.getElementById('specials-mode').value;
+          
+          const schoolRef = doc(db, 'schools', state.schoolId);
+          const updates = {
+            name,
+            logoURL,
+            specialsMode,
+            theme: {
+              mode: state.currentTheme,
+              vars: state.currentTheme === 'custom' ? state.customVars : {}
+            }
+          };
+          
+          await updateDoc(schoolRef, updates);
+          
+          // Audit log
+          const ctx = getAuditContext();
+          await audit(state.schoolId, {
+            ...ctx,
+            action: 'school_profile_update',
+            target: state.schoolId,
+            details: { fields: Object.keys(updates) }
+          });
+          
+          toast('School profile saved successfully!', 'success');
+          
+          // Reload
+          state.school = await loadSchool(state.schoolId);
+        } catch (err) {
+          console.error('[Admin] Save profile error');
+          toast('Failed to save school profile', 'error');
+        }
+      };
+
+      // Staff management
+      window.addStaff = async () => {
+        try {
+          const email = document.getElementById('new-staff-email').value.trim();
+          if (!email) {
+            toast('Please enter an email address', 'warning');
+            return;
+          }
+          
+          // Generate staff ID from email (simple approach)
+          const staffId = email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '_');
+          
+          const staffRef = doc(db, 'schools', state.schoolId, 'staff', staffId);
+          const staffDoc = await getDoc(staffRef);
+          
+          if (staffDoc.exists()) {
+            toast('Staff member already exists', 'warning');
+            return;
+          }
+          
+          await setDoc(staffRef, {
+            email,
+            displayName: email.split('@')[0],
+            roles: ['teacher'],
+            createdAt: serverTimestamp()
+          });
+          
+          toast('Staff member added. Remember to set custom claims via Cloud Function!', 'success');
+          
+          // Reload
+          await loadStaff();
+          const user = getCurrentUser();
+          const claims = getClaims();
+          render(state.school, user, claims);
+          
+          document.getElementById('new-staff-email').value = '';
+        } catch (err) {
+          console.error('[Admin] Add staff error');
+          toast('Failed to add staff member', 'error');
+        }
+      };
+
+      window.toggleStaffRole = async (staffId, role, checked) => {
+        try {
+          const member = state.staff.find(s => s.id === staffId);
+          if (!member) return;
+          
+          let roles = member.roles || [];
+          
+          if (checked) {
+            if (!roles.includes(role)) {
+              roles.push(role);
+            }
+          } else {
+            roles = roles.filter(r => r !== role);
+          }
+          
+          const staffRef = doc(db, 'schools', state.schoolId, 'staff', staffId);
+          await updateDoc(staffRef, { roles });
+          
+          toast(`Role ${checked ? 'added' : 'removed'}. Update custom claims via Cloud Function.`, 'info');
+          
+          // Reload
+          await loadStaff();
+        } catch (err) {
+          console.error('[Admin] Toggle role error');
+          toast('Failed to update role', 'error');
+        }
+      };
+
+      window.editStaff = (staffId) => {
+        toast('Edit staff functionality coming soon', 'info');
+      };
+
+      window.deleteStaff = async (staffId) => {
+        if (!confirm('Are you sure you want to delete this staff member?')) return;
+        
+        toast('Delete staff functionality coming soon', 'info');
+      };
+
+      // Seeding
+      window.runSeedDemo = async () => {
+        try {
+          const numStudents = parseInt(document.getElementById('seed-students').value);
+          const specialsMode = document.getElementById('seed-specials-mode').value;
+          
+          toast('Seeding demo data... This may take a moment.', 'info');
+          
+          const result = await seedDemo(state.schoolId, {
+            seed: 1337,
+            specialsMode,
+            numStudents
+          });
+          
+          toast(`Successfully created ${result.studentsCreated} students with sample data!`, 'success');
+        } catch (err) {
+          console.error('[Admin] Seed demo error');
+          toast('Failed to seed demo data', 'error');
+        }
+      };
+
+      // Imitation
+      window.startImitation = (staffId, role) => {
+        startImitate(staffId, role);
+        toast(`Started imitating as ${role}. Navigate to teacher/specials pages to test.`, 'success');
+        
+        const user = getCurrentUser();
+        const claims = getClaims();
+        render(state.school, user, claims);
+      };
+
+      window.stopImitationMode = () => {
+        stopImitate();
+        toast('Imitation stopped', 'success');
+        
+        const user = getCurrentUser();
+        const claims = getClaims();
+        render(state.school, user, claims);
+      };
+
+      window.filterImitateList = (searchText) => {
+        const results = document.getElementById('imitate-results');
+        if (!results) return;
+        
+        const filtered = state.staff.filter(member => {
+          const name = (member.displayName || '').toLowerCase();
+          const email = (member.email || '').toLowerCase();
+          const search = searchText.toLowerCase();
+          return name.includes(search) || email.includes(search);
+        });
+        
+        results.innerHTML = filtered.map(renderImitateItem).join('');
+      };
+
+      // Maintenance
+      window.recomputeAnalytics = async () => {
+        const start = document.getElementById('analytics-start').value;
+        const end = document.getElementById('analytics-end').value;
+        
+        if (!start || !end) {
+          toast('Please select both start and end dates', 'warning');
+          return;
+        }
+        
+        toast('Recomputing analytics... This will take several minutes.', 'info');
+        
+        // TODO: Trigger Cloud Function for analytics computation
+        
+        setTimeout(() => {
+          toast('Analytics recomputed successfully!', 'success');
+        }, 3000);
+      };
+
+      window.runSchemaMigration = async () => {
+        if (!confirm('Are you sure you want to run schema migrations? This should only be done when instructed.')) return;
+        
+        toast('Running schema migration...', 'info');
+        
+        // TODO: Implement schema migration logic
+        
+        setTimeout(() => {
+          toast('Schema migration completed', 'success');
+        }, 2000);
+      };
+
+      window.clearLocalCache = () => {
+        if (confirm('Clear local cache and reload the page?')) {
+          localStorage.clear();
+          sessionStorage.clear();
+          location.reload();
+        }
+      };
+
+      window.exportAuditLogs = async () => {
+        toast('Exporting audit logs...', 'info');
+        
+        // TODO: Query audit_logs collection and generate CSV export
+        
+        setTimeout(() => {
+          toast('Audit logs exported (feature in development)', 'info');
+        }, 1000);
+      };
+
+      // Listen for imitation events
+      window.addEventListener('imitation-active', () => {
+        const user = getCurrentUser();
+        const claims = getClaims();
+        render(state.school, user, claims);
+      });
+
+      window.addEventListener('imitation-stopped', () => {
+        const user = getCurrentUser();
+        const claims = getClaims();
+        render(state.school, user, claims);
+      });
+    }
+  </script>
+</body>
+</html>

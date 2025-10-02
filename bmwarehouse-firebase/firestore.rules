@@ -1,0 +1,75 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    function isAuthed() {
+      return request.auth != null;
+    }
+    
+    function hasRole(role) {
+      return isAuthed() && role in request.auth.token.roles;
+    }
+    
+    function schoolId() {
+      return request.auth.token.schoolId;
+    }
+    
+    function isOwnSchool(sid) {
+      return isAuthed() && sid == schoolId();
+    }
+
+    // Schools root
+    match /schools/{sid} {
+      allow read: if isOwnSchool(sid);
+      allow update: if hasRole('admin') && isOwnSchool(sid);
+      allow create, delete: if false;
+
+      // Staff - admin write only
+      match /staff/{uid} {
+        allow read: if isOwnSchool(sid);
+        allow write: if hasRole('admin') && isOwnSchool(sid);
+      }
+
+      // Students
+      match /students/{studentId} {
+        allow read: if isOwnSchool(sid);
+        allow write: if isOwnSchool(sid) && 
+                       (hasRole('admin') || hasRole('achievement') || hasRole('teacher'));
+      }
+
+      // Plans
+      match /plans/{planId} {
+        allow read: if isOwnSchool(sid);
+        allow write: if isOwnSchool(sid) && 
+                       (hasRole('admin') || hasRole('achievement'));
+        
+        // Plan days - teacher/specials can write
+        match /days/{dayId} {
+          allow read: if isOwnSchool(sid);
+          allow write: if isOwnSchool(sid) && 
+                         (hasRole('admin') || hasRole('teacher') || hasRole('specials'));
+        }
+      }
+
+      // Accommodations
+      match /accommodations/{studentId} {
+        allow read: if isOwnSchool(sid);
+        allow write: if isOwnSchool(sid) && 
+                       (hasRole('admin') || hasRole('achievement'));
+      }
+
+      // Analytics summaries - admin only write
+      match /analytics_summaries/{rangeId} {
+        allow read: if isOwnSchool(sid);
+        allow write: if hasRole('admin') && isOwnSchool(sid);
+      }
+
+      // Audit logs - append-only, admin read
+      match /audit_logs/{logId} {
+        allow read: if hasRole('admin') && isOwnSchool(sid);
+        allow create: if isOwnSchool(sid);
+        allow update, delete: if false;
+      }
+    }
+  }
+}

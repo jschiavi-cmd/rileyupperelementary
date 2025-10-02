@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="BMWarehouse Teacher Dashboard">
+  <title>Teacher Dashboard - BMWarehouse</title>
+  <script type="importmap">
+  {
+    "imports": {
+      "firebase/app": "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js",
+      "firebase/auth": "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js",
+      "firebase/firestore": "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"
+    }
+  }
+  </script>
+  <link rel="stylesheet" href="/styles/ui.css">
+  <style>
+    /* Page-specific styles */
+    .student-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: var(--space-lg);
+      margin: var(--space-lg) 0;
+    }
+
+    @media (min-width: 768px) {
+      .student-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    .student-card {
+      background-color: var(--color-surface);
+      border-radius: var(--radius-lg);
+      padding: var(--space-lg);
+      box-shadow: var(--shadow-2);
+    }
+
+    .student-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: var(--space-md);
+      padding-bottom: var(--space-md);
+      border-bottom: 1px solid var(--color-outline-variant);
+    }
+
+    .student-name {
+      font-size: var(--font-size-xl);
+      font-weight: var(--font-weight-semibold);
+      color: var(--color-on-surface);
+      margin: 0 0 var(--space-xs) 0;
+    }
+
+    .student-name.blurred {
+      filter: blur(8px);
+      user-select: none;
+    }
+
+    .student-meta {
+      font-size: var(--font-size-sm);
+      color: var(--color-on-surface-variant);
+    }
+
+    .incident-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-xs);
+      margin-top: var(--space-sm);
+    }
+
+    .matrix-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: var(--space-xs);
+      margin: var(--space-md) 0;
+    }
+
+    .matrix-table th {
+      background-color: var(--color-surface-elevated);
+      padding: var(--space-sm);
+      font-size: var(--font-size-sm);
+      font-weight: var(--font-weight-semibold);
+      text-align: center;
+      border-radius: var(--radius-sm);
+    }
+
+    .matrix-table td {
+      padding: var(--space-xs);
+      text-align: center;
+      vertical-align: middle;
+    }
+
+    .period-label {
+      background-color: var(--color-surface-variant);
+      padding: var(--space-sm);
+      font-weight: var(--font-weight-medium);
+      border-radius: var(--radius-sm);
+      font-size: var(--font-size-sm);
+    }
+
+    .totals-cell {
+      background-color: var(--color-primary);
+      color: var(--color-on-primary);
+      padding: var(--space-sm);
+      border-radius: var(--radius-md);
+      font-weight: var(--font-weight-bold);
+      font-size: var(--font-size-lg);
+    }
+
+    .footer-tools {
+      position: sticky;
+      bottom: 0;
+      background-color: var(--color-surface-elevated);
+      padding: var(--space-lg);
+      box-shadow: var(--shadow-4);
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-md);
+      align-items: center;
+      justify-content: space-between;
+      z-index: var(--z-sticky);
+    }
+
+    .imitation-banner {
+      background-color: var(--color-warning);
+      color: #000;
+      padding: var(--space-md);
+      text-align: center;
+      font-weight: var(--font-weight-semibold);
+      position: sticky;
+      top: 64px;
+      z-index: var(--z-sticky);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-md);
+    }
+
+    .teacher-selector {
+      background-color: var(--color-surface-variant);
+      padding: var(--space-lg);
+      border-radius: var(--radius-lg);
+      margin: var(--space-lg) 0;
+    }
+
+    .absent-toggle {
+      background-color: var(--color-error);
+      color: #FFF;
+      padding: var(--space-xs) var(--space-sm);
+      border-radius: var(--radius-full);
+      font-size: var(--font-size-xs);
+      cursor: pointer;
+      border: none;
+      min-height: 32px;
+    }
+
+    .absent-toggle.active {
+      background-color: var(--color-success);
+    }
+
+    @media (max-width: 767px) {
+      .matrix-table {
+        font-size: var(--font-size-sm);
+      }
+      
+      .matrix-table th,
+      .matrix-table td {
+        padding: var(--space-xs);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+
+  <script type="module">
+    import { app } from '/scripts/firebase-sdk.js';
+    import { 
+      guardRoute, 
+      getCurrentUser, 
+      getClaims, 
+      getAuditContext,
+      getImitationState,
+      startImitate,
+      stopImitate,
+      getSchoolContext
+    } from '/scripts/auth.js';
+    import { 
+      getTodayKey,
+      loadTeacherStudents,
+      loadSchool,
+      loadStaff,
+      loadPlan,
+      loadDay,
+      loadAccommodations,
+      saveMatrixCell,
+      saveComment,
+      logCustomIncident,
+      audit
+    } from '/scripts/data.js';
+    import { parseQuery, onGuardReady } from '/scripts/router.js';
+    import { 
+      renderTopBar,
+      renderWeekPicker,
+      renderScoreStepper,
+      renderCheckPill,
+      renderIncidentChip,
+      toast
+    } from '/scripts/components.js';
+
+    // State
+    let state = {
+      schoolId: null, // Will be loaded from getSchoolContext()
+      currentDate: new Date(),
+      students: [],
+      blurNames: false,
+      absentStudents: new Set(),
+      pendingWrites: new Map(),
+      debounceTimers: new Map()
+    };
+
+    // Guard route - only teacher, admin, or achievement
+    await guardRoute(['teacher', 'admin', 'achievement']);
+
+    // Wait for body to be ready
+    onGuardReady(async () => {
+      try {
+        await init();
+      } catch (err) {
+        console.error('[Teacher] Init error');
+        document.getElementById('app').innerHTML = `
+          <div class="container" style="padding: var(--space-xl);">
+            <div class="card">
+              <h2>Error Loading Dashboard</h2>
+              <p>Unable to load the teacher dashboard. Please try refreshing the page.</p>
+            </div>
+          </div>
+        `;
+      }
+    });
+
+    async function init() {
+      // Get school context first
+      const { schoolId, user, claims } = await getSchoolContext();
+      state.schoolId = schoolId;
+      const imitationState = getImitationState();
+
+      // Load school
+      const school = await loadSchool(state.schoolId);
+      
+      // Apply theme
+      if (school?.theme?.mode) {
+        document.documentElement.setAttribute('data-theme', school.theme.mode);
+      }
+
+      // Determine effective teacher ID
+      let effectiveTeacherId = user.uid;
+      if (imitationState?.asRole === 'teacher') {
+        effectiveTeacherId = imitationState.targetUid;
+      }
+
+      // Load teacher's students
+      state.students = await loadTeacherStudents(state.schoolId, effectiveTeacherId);
+
+      // Load plans and today's data for each student
+      const dayKey = getTodayKey(state.currentDate);
+      for (const student of state.students) {
+        if (student.activePlanId) {
+          student.plan = await loadPlan(state.schoolId, student.activePlanId);
+          student.dayData = await loadDay(state.schoolId, student.activePlanId, dayKey);
+          student.accommodations = await loadAccommodations(state.schoolId, student.id);
+        }
+      }
+
+      render(school, user, claims);
+      setupListeners();
+    }
+
+    function render(school, user, claims) {
+      const imitationState = getImitationState();
+      const roles = claims?.roles || [];
+      const isAdminOrAchievement = roles.includes('admin') || roles.includes('achievement');
+
+      const app = document.getElementById('app');
+      
+      let html = renderTopBar({
+        school,
+        user,
+        claims,
+        onMenu: () => {
+          // TODO: Open menu
+          toast('Menu coming soon', 'info');
+        }
+      });
+
+      // Imitation banner
+      if (imitationState) {
+        html += `
+          <div class="imitation-banner">
+            <span>⚠️ IMITATION MODE: Acting as ${imitationState.asRole}</span>
+            <button class="btn btn--text" onclick="window.stopImitationMode()" style="color: #000;">
+              Stop Imitation
+            </button>
+          </div>
+        `;
+      }
+
+      html += '<div class="container">';
+
+      // Teacher selector for admin/achievement
+      if (isAdminOrAchievement && !imitationState) {
+        html += `
+          <div class="teacher-selector">
+            <h3>Select Teacher to View</h3>
+            <p class="mb-md" style="color: var(--color-on-surface-variant);">
+              As an administrator, you can view any teacher's dashboard or imitate them for testing.
+            </p>
+            <div class="d-flex gap-md">
+              <select id="teacher-select" class="form-select" style="flex: 1;">
+                <option value="">Select a teacher...</option>
+                <option value="teacher_001">Ms. Bruestle</option>
+                <option value="teacher_002">Mr. Johnson</option>
+                <option value="teacher_003">Mrs. Williams</option>
+              </select>
+              <button class="btn btn--primary" onclick="window.imitateTeacher()">
+                Imitate Teacher
+              </button>
+            </div>
+          </div>
+        `;
+      }
+
+      // Date picker
+      html += renderWeekPicker({
+        date: state.currentDate,
+        onChange: (newDate) => {
+          state.currentDate = new Date(newDate);
+          init();
+        }
+      });
+
+      // Students grid
+      if (state.students.length === 0) {
+        html += `
+          <div class="card mt-lg">
+            <h3>No Students Assigned</h3>
+            <p>You don't have any students assigned to you yet. Please contact your administrator.</p>
+          </div>
+        `;
+      } else {
+        html += '<div class="student-grid">';
+        
+        for (const student of state.students) {
+          html += renderStudentCard(student);
+        }
+        
+        html += '</div>';
+      }
+
+      html += '</div>'; // container
+
+      // Footer tools
+      html += renderFooterTools();
+
+      app.innerHTML = html;
+    }
+
+    function renderStudentCard(student) {
+      if (!student.plan) {
+        return `
+          <div class="student-card">
+            <div class="student-header">
+              <div>
+                <h3 class="student-name ${state.blurNames ? 'blurred' : ''}">${student.name}</h3>
+                <div class="student-meta">Grade ${student.grade} • No active plan</div>
+              </div>
+            </div>
+            <p style="color: var(--color-on-surface-variant);">This student does not have an active behavior plan.</p>
+          </div>
+        `;
+      }
+
+      const plan = student.plan;
+      const dayData = student.dayData || { matrix: {}, totals: { pct: 0 } };
+      const isAbsent = state.absentStudents.has(student.id);
+
+      let html = '<div class="student-card">';
+      
+      // Header
+      html += '<div class="student-header">';
+      html += '<div>';
+      html += `<h3 class="student-name ${state.blurNames ? 'blurred' : ''}">${student.name}</h3>`;
+      html += `<div class="student-meta">Grade ${student.grade}</div>`;
+      
+      // Custom incident chips
+      if (plan.customButtons && plan.customButtons.length > 0) {
+        html += '<div class="incident-chips">';
+        for (const button of plan.customButtons) {
+          html += renderIncidentChip({
+            label: button.label,
+            colorHex: button.colorHex,
+            onTap: () => logIncident(student.id, button, null),
+            onHold: () => openIncidentNote(student.id, button)
+          });
+        }
+        html += '</div>';
+      }
+      
+      html += '</div>';
+      
+      // Absent toggle
+      html += `
+        <button 
+          class="absent-toggle ${isAbsent ? 'active' : ''}"
+          onclick="window.toggleAbsent('${student.id}')"
+        >
+          ${isAbsent ? '✓ Present' : 'Mark Absent'}
+        </button>
+      `;
+      
+      html += '</div>'; // student-header
+
+      if (isAbsent) {
+        html += '<div style="text-align: center; padding: var(--space-xl); color: var(--color-on-surface-variant);">';
+        html += '<p>Student marked absent</p>';
+        html += '</div>';
+      } else {
+        // Matrix table
+        html += renderMatrixTable(student, plan, dayData);
+      }
+
+      html += '</div>'; // student-card
+      return html;
+    }
+
+    function renderMatrixTable(student, plan, dayData) {
+      const matrix = dayData.matrix || {};
+      
+      let html = '<table class="matrix-table">';
+      
+      // Header row
+      html += '<thead><tr>';
+      html += '<th>Period</th>';
+      for (const goal of plan.goals) {
+        html += `<th>${goal.label}</th>`;
+      }
+      html += '<th>Total</th>';
+      html += '</tr></thead>';
+      
+      // Body rows
+      html += '<tbody>';
+      
+      let overallPoints = 0;
+      let overallPossible = 0;
+      let amPoints = 0;
+      let amPossible = 0;
+      let pmPoints = 0;
+      let pmPossible = 0;
+      
+      for (const period of plan.schedule) {
+        html += '<tr>';
+        html += `<td><div class="period-label">${period.label} ${period.am ? 'AM' : 'PM'}</div></td>`;
+        
+        const periodData = matrix[period.id] || {};
+        
+        for (const goal of plan.goals) {
+          const value = periodData[goal.id];
+          const cellKey = `${student.id}-${period.id}-${goal.id}`;
+          
+          // Calculate points
+          if (goal.kind === 'stepper') {
+            const points = value !== undefined && value !== null ? Number(value) : 0;
+            overallPoints += points;
+            overallPossible += 2;
+            
+            if (period.am) {
+              amPoints += points;
+              amPossible += 2;
+            } else {
+              pmPoints += points;
+              pmPossible += 2;
+            }
+          } else if (goal.kind === 'checkbox') {
+            const points = value ? 1 : 0;
+            overallPoints += points;
+            overallPossible += 1;
+            
+            if (period.am) {
+              amPoints += points;
+              amPossible += 1;
+            } else {
+              pmPoints += points;
+              pmPossible += 1;
+            }
+          }
+          
+          html += '<td>';
+          if (goal.kind === 'stepper') {
+            html += renderScoreStepper(
+              value,
+              (newValue) => saveCellValue(student.id, period.id, goal.id, newValue),
+              cellKey
+            );
+          } else {
+            html += renderCheckPill(
+              !!value,
+              (newValue) => saveCellValue(student.id, period.id, goal.id, newValue),
+              cellKey
+            );
+          }
+          html += '</td>';
+        }
+        
+        // Period total (optional - could show per-period percentage)
+        html += '<td></td>';
+        html += '</tr>';
+      }
+      
+      // Totals row
+      const overallPct = overallPossible > 0 ? Math.round((overallPoints / overallPossible) * 100) : 0;
+      
+      html += '<tr>';
+      html += `<td colspan="${plan.goals.length + 1}" style="text-align: right; font-weight: var(--font-weight-semibold);">Total:</td>`;
+      html += `<td><div class="totals-cell">${overallPct}%</div></td>`;
+      html += '</tr>';
+      
+      // AM/PM totals if plan type requires it
+      if (plan.planType.includes('AMPM')) {
+        const amPct = amPossible > 0 ? Math.round((amPoints / amPossible) * 100) : 0;
+        const pmPct = pmPossible > 0 ? Math.round((pmPoints / pmPossible) * 100) : 0;
+        
+        html += '<tr>';
+        html += `<td colspan="${plan.goals.length + 1}" style="text-align: right; font-size: var(--font-size-sm); color: var(--color-on-surface-variant);">AM: ${amPct}% | PM: ${pmPct}%</td>`;
+        html += '<td></td>';
+        html += '</tr>';
+      }
+      
+      html += '</tbody>';
+      html += '</table>';
+      
+      // Incentive thresholds
+      if (plan.incentives?.thresholds) {
+        html += '<div style="display: flex; gap: var(--space-sm); margin-top: var(--space-md); flex-wrap: wrap;">';
+        for (const threshold of plan.incentives.thresholds) {
+          const achieved = overallPct >= threshold.pct;
+          html += `
+            <div class="chip ${achieved ? 'chip--success' : ''}" style="font-size: var(--font-size-xs);">
+              ${threshold.pct}%: ${threshold.label} ${achieved ? '✓' : ''}
+            </div>
+          `;
+        }
+        html += '</div>';
+      }
+      
+      return html;
+    }
+
+    function renderFooterTools() {
+      return `
+        <div class="footer-tools">
+          <div class="d-flex gap-md align-center">
+            <label style="display: flex; align-items: center; gap: var(--space-sm); cursor: pointer;">
+              <input 
+                type="checkbox" 
+                ${state.blurNames ? 'checked' : ''}
+                onchange="window.toggleBlurNames()"
+              />
+              <span>Blur Names</span>
+            </label>
+          </div>
+          
+          <div class="d-flex gap-md">
+            <button class="btn btn--outline" onclick="window.openCommentDrawer()">
+              Add Daily Comment
+            </button>
+            <button class="btn btn--primary" onclick="window.saveAllChanges()">
+              💾 Save All
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    function saveCellValue(studentId, periodId, goalId, value) {
+      const student = state.students.find(s => s.id === studentId);
+      if (!student || !student.plan) return;
+
+      const dayKey = getTodayKey(state.currentDate);
+      const cellKey = `${studentId}-${periodId}-${goalId}`;
+
+      // Optimistic update
+      if (!student.dayData) {
+        student.dayData = { matrix: {}, totals: { pct: 0 } };
+      }
+      if (!student.dayData.matrix[periodId]) {
+        student.dayData.matrix[periodId] = {};
+      }
+      student.dayData.matrix[periodId][goalId] = value;
+
+      // Debounce the write
+      if (state.debounceTimers.has(cellKey)) {
+        clearTimeout(state.debounceTimers.get(cellKey));
+      }
+
+      const timer = setTimeout(async () => {
+        try {
+          const ctx = getAuditContext();
+          await saveMatrixCell(
+            state.schoolId,
+            student.activePlanId,
+            dayKey,
+            periodId,
+            goalId,
+            value,
+            ctx
+          );
+          state.debounceTimers.delete(cellKey);
+          
+          // Reload day data to get updated totals
+          student.dayData = await loadDay(state.schoolId, student.activePlanId, dayKey);
+          
+          // Re-render just this student's card
+          const user = getCurrentUser();
+          const claims = getClaims();
+          const school = await loadSchool(state.schoolId);
+          render(school, user, claims);
+        } catch (err) {
+          console.error('[Teacher] Save cell error');
+          toast('Failed to save. Please try again.', 'error');
+        }
+      }, 400);
+
+      state.debounceTimers.set(cellKey, timer);
+    }
+
+    async function logIncident(studentId, button, note) {
+      const student = state.students.find(s => s.id === studentId);
+      if (!student || !student.plan) return;
+
+      const dayKey = getTodayKey(state.currentDate);
+      const ctx = getAuditContext();
+
+      try {
+        await logCustomIncident(
+          state.schoolId,
+          student.activePlanId,
+          dayKey,
+          button,
+          note,
+          'teacher',
+          ctx
+        );
+        
+        toast(`${button.label} logged`, 'success');
+        
+        // Reload day data
+        student.dayData = await loadDay(state.schoolId, student.activePlanId, dayKey);
+        
+        const user = getCurrentUser();
+        const claims = getClaims();
+        const school = await loadSchool(state.schoolId);
+        render(school, user, claims);
+      } catch (err) {
+        console.error('[Teacher] Log incident error');
+        toast('Failed to log incident', 'error');
+      }
+    }
+
+    function openIncidentNote(studentId, button) {
+      const note = prompt(`Add note for "${button.label}":`);
+      if (note !== null) {
+        logIncident(studentId, button, note);
+      }
+    }
+
+    function setupListeners() {
+      // Global functions for inline handlers
+      window.toggleBlurNames = () => {
+        state.blurNames = !state.blurNames;
+        const user = getCurrentUser();
+        const claims = getClaims();
+        loadSchool(state.schoolId).then(school => render(school, user, claims));
+      };
+
+      window.toggleAbsent = (studentId) => {
+        if (state.absentStudents.has(studentId)) {
+          state.absentStudents.delete(studentId);
+        } else {
+          state.absentStudents.add(studentId);
+        }
+        const user = getCurrentUser();
+        const claims = getClaims();
+        loadSchool(state.schoolId).then(school => render(school, user, claims));
+      };
+
+      window.openCommentDrawer = () => {
+        const comment = prompt('Enter daily comment:');
+        if (comment !== null && comment.trim()) {
+          saveTeacherComment(comment.trim());
+        }
+      };
+
+      window.saveAllChanges = async () => {
+        // Wait for all pending debounced writes
+        const timers = Array.from(state.debounceTimers.values());
+        for (const timer of timers) {
+          clearTimeout(timer);
+        }
+        
+        toast('All changes saved', 'success');
+      };
+
+      window.imitateTeacher = () => {
+        const select = document.getElementById('teacher-select');
+        const teacherId = select?.value;
+        if (!teacherId) {
+          toast('Please select a teacher', 'warning');
+          return;
+        }
+        
+        startImitate(teacherId, 'teacher');
+        init();
+      };
+
+      window.stopImitationMode = () => {
+        stopImitate();
+        init();
+      };
+
+      // Listen for imitation events
+      window.addEventListener('imitation-active', () => {
+        init();
+      });
+
+      window.addEventListener('imitation-stopped', () => {
+        init();
+      });
+    }
+
+    async function saveTeacherComment(comment) {
+      const dayKey = getTodayKey(state.currentDate);
+      const ctx = getAuditContext();
+
+      try {
+        // Save comment for first student's plan (or handle differently if needed)
+        if (state.students.length > 0 && state.students[0].activePlanId) {
+          await saveComment(
+            state.schoolId,
+            state.students[0].activePlanId,
+            dayKey,
+            'teacher',
+            comment,
+            ctx
+          );
+          
+          toast('Comment saved', 'success');
+        }
+      } catch (err) {
+        console.error('[Teacher] Save comment error');
+        toast('Failed to save comment', 'error');
+      }
+    }
+  </script>
+</body>
+</html>
